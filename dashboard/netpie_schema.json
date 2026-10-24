@@ -1,0 +1,18 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "gw": { "type": "string" },
+    "ts": { "type": "number" },
+    "nodes": {
+      "type": "object",
+      "properties": {
+        "1": {
+          "type": "object",
+          "properties": {
+            "pm25": { "type": "number", "operation": { "store": { "ttl": "30d" } } }
+          }
+        }
+      }
+    }
+  }
+}
