@@ -15,6 +15,7 @@ constexpr uint16_t MQTT_PORT = 1883;  // TLS (8883) comes with E5 in a later pla
 constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
 constexpr size_t PAYLOAD_MAX = 2048;  // worst case for MAX_NODES is ~1.2 KB
 constexpr uint32_t RECONNECT_MS = 5000;
+constexpr uint32_t WIFI_RETRY_MS = 30000;  // each attempt briefly costs ESP-NOW reception
 constexpr uint32_t LOOP_MS = 100;
 constexpr UBaseType_t CLOUD_TASK_PRIO = 2;  // can wait: below receive and control
 constexpr uint32_t CLOUD_TASK_STACK = 8192;
@@ -22,6 +23,21 @@ constexpr uint32_t CLOUD_TASK_STACK = 8192;
 static WiFiClient net;
 static PubSubClient mqtt(net);
 static char payload[PAYLOAD_MAX];
+
+static uint8_t wifi_channel = 0;
+
+// Auto-reconnect is off (main.cpp), so rejoin the router ourselves, on its last channel.
+static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
+  if (WiFi.status() == WL_CONNECTED) {
+    wifi_channel = WiFi.channel();
+    return;
+  }
+  if (now - last_wifi_try < WIFI_RETRY_MS) return;
+  last_wifi_try = now;
+  Serial.printf("wifi: reconnecting on channel %u\n", wifi_channel);
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASS, wifi_channel);
+}
 
 static bool ensure_connected(uint32_t now, uint32_t& last_try) {
   if (mqtt.connected()) return true;
@@ -32,8 +48,10 @@ static bool ensure_connected(uint32_t now, uint32_t& last_try) {
   return ok;
 }
 
-static void publish_shadow(uint32_t now) {
+static void publish_shadow() {
   xSemaphoreTake(g_nodes_mtx, portMAX_DELAY);
+  // Read the time under the lock, so no node can be stored "after" it.
+  uint32_t now = millis();
   size_t n = build_shadow_update(g_nodes, GW_ID, (uint32_t)time(nullptr), now, payload, sizeof(payload));
   xSemaphoreGive(g_nodes_mtx);
   if (n == 0) {
@@ -45,7 +63,7 @@ static void publish_shadow(uint32_t now) {
 }
 
 static void cloud_task(void*) {
-  uint32_t last_try = 0, last_pub = 0;
+  uint32_t last_try = 0, last_pub = 0, last_wifi_try = millis();
   bool first_try = true;
   for (;;) {
     uint32_t now = millis();
@@ -53,12 +71,13 @@ static void cloud_task(void*) {
       last_try = now - RECONNECT_MS;  // try the first connect straight away
       first_try = false;
     }
+    ensure_wifi(now, last_wifi_try);
     if (ensure_connected(now, last_try)) {
       mqtt.loop();
       // Not connected = skip; buffering offline data (E4) comes in a later plan.
       if (now - last_pub >= PUBLISH_PERIOD_MS) {
         last_pub = now;
-        publish_shadow(now);
+        publish_shadow();
       }
     }
     vTaskDelay(pdMS_TO_TICKS(LOOP_MS));

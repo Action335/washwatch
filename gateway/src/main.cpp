@@ -16,6 +16,9 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);  // with modem sleep on, ESP-NOW misses packets
+  // The core's auto-reconnect scans every channel nonstop while the router is off, so
+  // ESP-NOW goes deaf. cloud_task reconnects on the last known channel instead.
+  WiFi.setAutoReconnect(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < WIFI_WAIT_MS) delay(250);

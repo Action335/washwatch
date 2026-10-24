@@ -134,6 +134,31 @@ void test_full_table_fits_2048() {
   TEST_ASSERT_TRUE(n >= 1 && n <= 2048);
 }
 
+void test_faulted_sensor_fields_are_null() {
+  NodeTable t;
+  node_msg_t m = indoor(1);
+  m.pm1 = m.pm25 = m.pm10 = NOT_FITTED;
+  m.temp_c10 = TEMP_NOT_FITTED;
+  m.rh_10 = NOT_FITTED;
+  m.flags = FLAG_PMS_FAULT | FLAG_DHT_FAULT;
+  t.ingest(m, 0);
+  build(t, 0, 0);
+  TEST_ASSERT_TRUE(strstr(out, "\"pm25\":null") != nullptr);
+  TEST_ASSERT_TRUE(strstr(out, "\"pm1\":null") != nullptr);
+  TEST_ASSERT_TRUE(strstr(out, "\"t\":null") != nullptr);
+  TEST_ASSERT_TRUE(strstr(out, "\"rh\":null") != nullptr);
+  TEST_ASSERT_TRUE(strstr(out, "\"lux\"") == nullptr);  // not fitted, no fault: omitted
+}
+
+void test_age_clamped_when_seen_after_now() {
+  NodeTable t;
+  t.ingest(indoor(1), 5000);
+  JsonDocument doc = build(t, 0, 4000);
+  JsonObject n1 = doc["data"]["nodes"]["1"];
+  TEST_ASSERT_EQUAL(0, n1["age_s"].as<int>());
+  TEST_ASSERT_TRUE(n1["online"].as<bool>());
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_indoor_node_fields);
@@ -144,5 +169,7 @@ int main() {
   RUN_TEST(test_gw_and_ts);
   RUN_TEST(test_small_buffer_returns_zero);
   RUN_TEST(test_full_table_fits_2048);
+  RUN_TEST(test_faulted_sensor_fields_are_null);
+  RUN_TEST(test_age_clamped_when_seen_after_now);
   return UNITY_END();
 }

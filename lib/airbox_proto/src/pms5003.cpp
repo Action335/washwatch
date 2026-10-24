@@ -28,6 +28,11 @@ bool Pms5003Parser::feed(uint8_t b) {
   for (size_t i = 0; i < 30; i++) sum += buf_[i];
   if (sum != be16(&buf_[30])) {
     checksum_errors_++;
+    // The real frame may start inside what we buffered (e.g. after a partial frame):
+    // run bytes 1..31 through the parser again. 31 bytes can't complete a frame.
+    uint8_t rest[FRAME_LEN - 1];
+    for (size_t i = 0; i < FRAME_LEN - 1; i++) rest[i] = buf_[i + 1];
+    for (size_t i = 0; i < FRAME_LEN - 1; i++) feed(rest[i]);
     return false;
   }
   decode();

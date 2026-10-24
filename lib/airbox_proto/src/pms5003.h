@@ -16,6 +16,8 @@ class Pms5003Parser {
  public:
   // Returns true only on the byte that completes a frame with a valid checksum.
   bool feed(uint8_t b);
+  // Drops any partly received frame (call before each passive-mode read).
+  void reset() { len_ = 0; }
   const PmsReading& reading() const { return reading_; }
   uint32_t checksum_errors() const { return checksum_errors_; }
 

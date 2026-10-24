@@ -22,6 +22,7 @@ constexpr int PIN_SDA = 21, PIN_SCL = 22;
 
 constexpr uint32_t MQ_WARMUP_MS = 180000;  // heater settling after power-on
 constexpr uint32_t PMS_READ_TIMEOUT_MS = 200;
+constexpr uint32_t PMS_BOOT_DELAY_MS = 1000;  // sensor ignores commands right after power-on
 
 #if HAS_PMS
 static Pms5003Parser pms;
@@ -47,6 +48,7 @@ static void clear_fields(node_msg_t& m) {
 void sensors_begin() {
 #if HAS_PMS
   Serial2.begin(9600, SERIAL_8N1, PIN_PMS_RX, PIN_PMS_TX);
+  delay(PMS_BOOT_DELAY_MS);
   Serial2.write(PMS_CMD_PASSIVE, sizeof(PMS_CMD_PASSIVE));
 #endif
 #if HAS_DHT
@@ -64,6 +66,7 @@ void sensors_begin() {
 #if HAS_PMS
 static void read_pms(node_msg_t& m) {
   while (Serial2.available()) Serial2.read();  // drop stale bytes
+  pms.reset();                                 // and any half frame left from last cycle
   Serial2.write(PMS_CMD_READ, sizeof(PMS_CMD_READ));
   uint32_t t0 = millis();
   while (millis() - t0 < PMS_READ_TIMEOUT_MS) {
@@ -80,6 +83,8 @@ static void read_pms(node_msg_t& m) {
     }
   }
   m.flags |= FLAG_PMS_FAULT;
+  // The passive-mode command may have been lost (e.g. at power-on): send it again.
+  Serial2.write(PMS_CMD_PASSIVE, sizeof(PMS_CMD_PASSIVE));
 }
 #endif
 

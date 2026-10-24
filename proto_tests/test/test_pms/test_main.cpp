@@ -85,6 +85,26 @@ void test_bad_length_field_resyncs() {
   TEST_ASSERT_EQUAL(66, p.reading().pm25);
 }
 
+void test_partial_frame_then_good_frame() {
+  Pms5003Parser p;
+  uint8_t a[32], b[32];
+  make_frame(a, 0, 11, 0, 0, 0, 0, 0);
+  make_frame(b, 0, 88, 0, 0, 0, 0, 0);
+  TEST_ASSERT_EQUAL(1, feed_all(p, a, 20) + feed_all(p, b, 32));
+  TEST_ASSERT_EQUAL(88, p.reading().pm25);
+}
+
+void test_reset_drops_partial_frame() {
+  Pms5003Parser p;
+  uint8_t a[32], b[32];
+  make_frame(a, 0, 11, 0, 0, 0, 0, 0);
+  make_frame(b, 0, 99, 0, 0, 0, 0, 0);
+  feed_all(p, a, 20);
+  p.reset();
+  TEST_ASSERT_EQUAL(1, feed_all(p, b, 32));
+  TEST_ASSERT_EQUAL_UINT32(0, p.checksum_errors());
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_parses_valid_frame);
@@ -92,5 +112,7 @@ int main() {
   RUN_TEST(test_resyncs_after_garbage);
   RUN_TEST(test_two_frames_back_to_back);
   RUN_TEST(test_bad_length_field_resyncs);
+  RUN_TEST(test_partial_frame_then_good_frame);
+  RUN_TEST(test_reset_drops_partial_frame);
   return UNITY_END();
 }

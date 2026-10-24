@@ -72,6 +72,21 @@ void test_rejects_wrong_version() {
   TEST_ASSERT_EQUAL(0, t.count());
 }
 
+void test_reboot_heard_late_is_not_duplicate() {
+  NodeTable t;
+  t.ingest(msg(1, 1800, 3600000), 0);
+  TEST_ASSERT_TRUE(t.ingest(msg(1, 1440, 3700000), 100) == Ingest::Accepted);
+  TEST_ASSERT_EQUAL_UINT32(1440, t.find(1)->last.seq);
+}
+
+void test_seen_after_now_counts_as_online() {
+  NodeTable t;
+  t.ingest(msg(1, 0, 100), 5000);
+  TEST_ASSERT_TRUE(t.online(1, 4000));
+  TEST_ASSERT_EQUAL_UINT32(0, t.age_ms(1, 4000));
+  TEST_ASSERT_EQUAL_UINT32(2000, t.age_ms(1, 7000));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_accepts_new_and_tracks_count);
@@ -81,5 +96,7 @@ int main() {
   RUN_TEST(test_offline_after_30s);
   RUN_TEST(test_rejects_invalid_ids_and_full_table);
   RUN_TEST(test_rejects_wrong_version);
+  RUN_TEST(test_reboot_heard_late_is_not_duplicate);
+  RUN_TEST(test_seen_after_now_counts_as_online);
   return UNITY_END();
 }

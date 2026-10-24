@@ -24,7 +24,8 @@ static void on_recv(const uint8_t* mac, const uint8_t* data, int len) {
   xQueueSend(q_acks, &ack, 0);
 }
 
-static uint8_t scan_channel() {
+// Returns the router's channel, or `if_missing` when the scan can't see it.
+static uint8_t scan_channel(uint8_t if_missing) {
   int n = WiFi.scanNetworks();
   for (int i = 0; i < n; i++) {
     if (WiFi.SSID(i) == WIFI_SSID) {
@@ -34,7 +35,14 @@ static uint8_t scan_channel() {
     }
   }
   WiFi.scanDelete();
-  return FALLBACK_CHANNEL;
+  return if_missing;
+}
+
+static uint8_t current_channel() {
+  uint8_t ch;
+  wifi_second_chan_t second;
+  esp_wifi_get_channel(&ch, &second);
+  return ch;
 }
 
 static void set_channel(uint8_t ch) {
@@ -48,7 +56,7 @@ void link_begin() {
   q_acks = xQueueCreate(8, sizeof(ack_msg_t));
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
-  set_channel(scan_channel());
+  set_channel(scan_channel(FALLBACK_CHANNEL));
   if (esp_now_init() != ESP_OK) {
     Serial.println("link: esp_now_init failed, rebooting");
     ESP.restart();
@@ -75,7 +83,8 @@ bool link_send(const node_msg_t& m) {
   // The router may have moved channel: look for it again.
   if (sender.consecutive_give_ups() > 0 && sender.consecutive_give_ups() % RESCAN_AFTER_GIVE_UPS == 0) {
     Serial.println("link: no ACKs, rescanning channel");
-    set_channel(scan_channel());
+    // Router not visible (off, or out of this node's range): stay where we are.
+    set_channel(scan_channel(current_channel()));
   }
   return acked;
 }

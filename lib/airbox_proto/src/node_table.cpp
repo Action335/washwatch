@@ -21,12 +21,14 @@ Ingest NodeTable::ingest(const node_msg_t& m, uint32_t now_ms) {
     e = &entries_[count_++];
     e->first_seq = m.seq;
     e->received = 0;
-  } else if (m.uptime_ms < e->last.uptime_ms) {
-    // The node rebooted, so its seq restarted: start counting again.
+  } else if (m.seq == e->last.seq && m.uptime_ms == e->last.uptime_ms) {
+    // A retransmit is byte-identical: the node missed our ACK.
+    return Ingest::Duplicate;
+  } else if (m.seq <= e->last.seq || m.uptime_ms < e->last.uptime_ms) {
+    // The node rebooted, so its seq restarted: start counting again. Checking seq too
+    // catches a reboot we only hear after its new uptime has passed the old one.
     e->first_seq = m.seq;
     e->received = 0;
-  } else if (m.seq <= e->last.seq) {
-    return Ingest::Duplicate;
   }
 
   e->last = m;
@@ -35,9 +37,15 @@ Ingest NodeTable::ingest(const node_msg_t& m, uint32_t now_ms) {
   return Ingest::Accepted;
 }
 
-bool NodeTable::online(uint8_t node_id, uint32_t now_ms) const {
+uint32_t NodeTable::age_ms(uint8_t node_id, uint32_t now_ms) const {
   const NodeEntry* e = find(node_id);
-  return e != nullptr && now_ms - e->last_seen_ms < NODE_OFFLINE_MS;
+  if (e == nullptr) return UINT32_MAX;
+  uint32_t age = now_ms - e->last_seen_ms;
+  return (int32_t)age < 0 ? 0 : age;
+}
+
+bool NodeTable::online(uint8_t node_id, uint32_t now_ms) const {
+  return age_ms(node_id, now_ms) < NODE_OFFLINE_MS;
 }
 
 float NodeTable::pdr(uint8_t node_id) const {
