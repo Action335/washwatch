@@ -14,7 +14,8 @@ AI-driven DIY PM2.5 air purifier for dorm rooms (2110356 Embedded Systems final 
 ## Setup
 
 1. Install PlatformIO (VS Code extension or `pip install platformio`) and a host gcc for the PC tests (Windows: `winget install BrechtSanders.WinLibs.POSIX.UCRT`, then put its `mingw64/bin` on PATH).
-2. Copy `secrets.h.example` to `secrets.h` and fill it in. `secrets.h` is gitignored: never commit it.
+2. Copy `secrets.h.example` to `secrets.h` and fill it in. `secrets.h` is gitignored: never commit it. Only the gateway uses it: nodes find the gateway by sweeping channels, so switching to a phone hotspot means re-flashing the gateway only.
+3. Before building the dashboard, run `python tools/netpie_probe.py` once and write its three results here.
 
 ## Commands
 

@@ -2,8 +2,9 @@
 
 constexpr uint32_t Sender::WAIT_MS[4];
 
-void Sender::start(uint32_t seq, uint32_t now_ms) {
+void Sender::start(uint32_t seq, uint32_t now_ms, uint8_t max_tx) {
   busy_ = true;
+  max_tx_ = max_tx < 1 ? 1 : (max_tx > 4 ? 4 : max_tx);
   seq_ = seq;
   sent_ = 0;
   last_ms_ = now_ms;
@@ -18,7 +19,7 @@ SendAction Sender::poll(uint32_t now_ms) {
   }
   // Unsigned subtraction stays correct across millis() wraparound.
   if (now_ms - last_ms_ < WAIT_MS[sent_ - 1]) return SendAction::None;
-  if (sent_ == 4) {
+  if (sent_ == max_tx_) {
     busy_ = false;
     give_ups_++;
     return SendAction::GiveUp;

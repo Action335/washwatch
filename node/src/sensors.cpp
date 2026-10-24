@@ -91,11 +91,12 @@ static void read_pms(node_msg_t& m) {
 #if SIMULATED
 // Synthetic readings so the gateway and dashboard can show a third node (Scalability 2 pts).
 static void read_simulated(node_msg_t& m) {
-  float phase = (millis() % 600000) / 600000.0f * 2 * PI;  // 10-minute cycle
+  // 10-minute cycle, shifted per node ID so each simulated node shows different values.
+  float phase = (millis() % 600000) / 600000.0f * 2 * PI + m.node_id;
   m.pm25 = (uint16_t)(40 + 20 * sinf(phase));
   m.pm1 = m.pm25 * 7 / 10;
   m.pm10 = m.pm25 * 13 / 10;
-  m.temp_c10 = 300;
+  m.temp_c10 = 300 + 10 * m.node_id;
   m.rh_10 = 650;
 }
 #endif

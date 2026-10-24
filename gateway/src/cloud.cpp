@@ -15,7 +15,8 @@ constexpr uint16_t MQTT_PORT = 1883;  // TLS (8883) comes with E5 in a later pla
 constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
 constexpr size_t PAYLOAD_MAX = 2048;  // worst case for MAX_NODES is ~1.2 KB
 constexpr uint32_t RECONNECT_MS = 5000;
-constexpr uint32_t WIFI_RETRY_MS = 30000;  // each attempt briefly costs ESP-NOW reception
+constexpr uint32_t WIFI_FIRST_RETRY_MS = 2000;  // most drops are a short beacon loss
+constexpr uint32_t WIFI_RETRY_MS = 30000;       // then back off: each attempt costs ESP-NOW reception
 constexpr uint32_t LOOP_MS = 100;
 constexpr UBaseType_t CLOUD_TASK_PRIO = 2;  // can wait: below receive and control
 constexpr uint32_t CLOUD_TASK_STACK = 8192;
@@ -25,15 +26,20 @@ static PubSubClient mqtt(net);
 static char payload[PAYLOAD_MAX];
 
 static uint8_t wifi_channel = 0;
+static uint32_t wifi_attempts = 0;  // reconnect attempts since the link was last up
 
 // Auto-reconnect is off (main.cpp), so rejoin the router ourselves, on its last channel.
 static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
   if (WiFi.status() == WL_CONNECTED) {
     wifi_channel = WiFi.channel();
+    wifi_attempts = 0;
+    last_wifi_try = now;
     return;
   }
-  if (now - last_wifi_try < WIFI_RETRY_MS) return;
+  uint32_t wait = wifi_attempts == 0 ? WIFI_FIRST_RETRY_MS : WIFI_RETRY_MS;
+  if (now - last_wifi_try < wait) return;
   last_wifi_try = now;
+  wifi_attempts++;
   Serial.printf("wifi: reconnecting on channel %u\n", wifi_channel);
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASS, wifi_channel);

@@ -38,10 +38,21 @@ void test_bytes_roundtrip() {
   TEST_ASSERT_EQUAL(800, b.lux);
 }
 
+void test_next_channel_cycles_1_to_13() {
+  TEST_ASSERT_EQUAL(7, next_channel(6));
+  TEST_ASSERT_EQUAL(1, next_channel(13));
+  TEST_ASSERT_EQUAL(1, next_channel(0));
+  TEST_ASSERT_EQUAL(1, next_channel(14));
+  uint8_t ch = 6;
+  for (int i = 0; i < WIFI_CHANNEL_MAX; i++) ch = next_channel(ch);
+  TEST_ASSERT_EQUAL(6, ch);  // a full sweep visits all 13 and returns to the start
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_struct_sizes);
   RUN_TEST(test_node_id_range);
   RUN_TEST(test_bytes_roundtrip);
+  RUN_TEST(test_next_channel_cycles_1_to_13);
   return UNITY_END();
 }

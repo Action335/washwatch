@@ -45,3 +45,7 @@ constexpr uint32_t NODE_OFFLINE_MS = 30000;
 constexpr uint8_t MAX_NODES = 8;
 
 constexpr bool is_valid_node_id(uint8_t id) { return id >= 1 && id <= 254; }
+
+// Wi-Fi channels used in Thailand. Nodes find the gateway by trying each in turn.
+constexpr uint8_t WIFI_CHANNEL_MAX = 13;
+constexpr uint8_t next_channel(uint8_t ch) { return (ch >= 1 && ch < WIFI_CHANNEL_MAX) ? ch + 1 : 1; }

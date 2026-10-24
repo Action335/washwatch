@@ -17,6 +17,7 @@ constexpr UBaseType_t RX_TASK_PRIO = 5;  // time-critical: highest of the gatewa
 constexpr uint32_t RX_TASK_STACK = 4096;
 
 static QueueHandle_t q_node_msgs;
+static uint32_t counts[3];  // Accepted, Duplicate, Rejected since boot (for the bench check)
 
 // Runs on the Wi-Fi task: copy the frame out and return, nothing else.
 static void on_recv(const uint8_t* mac, const uint8_t* data, int len) {
@@ -56,7 +57,10 @@ static void espnow_rx_task(void*) {
     xSemaphoreGive(g_nodes_mtx);
     // ACK duplicates too: a duplicate means the node missed our first ACK.
     if (r != Ingest::Rejected) send_ack(item.mac, item.msg);
-    Serial.printf("rx node=%u seq=%lu %s\n", item.msg.node_id, (unsigned long)item.msg.seq, name(r));
+    counts[(int)r]++;
+    Serial.printf("rx node=%u seq=%lu %s (acc=%lu dup=%lu rej=%lu)\n", item.msg.node_id,
+                  (unsigned long)item.msg.seq, name(r), (unsigned long)counts[0],
+                  (unsigned long)counts[1], (unsigned long)counts[2]);
   }
 }
 

@@ -89,6 +89,29 @@ void test_millis_wraparound() {
   TEST_ASSERT_TRUE(s.poll(t0 + 30) == SendAction::Transmit);  // wrapped past 0
 }
 
+void test_single_try_gives_up_after_30ms() {
+  Sender s;
+  s.start(1, 0, 1);
+  int tx = 0;
+  uint32_t give_up_at = 0;
+  for (uint32_t t = 0; t < 1000; t++) {
+    SendAction a = s.poll(t);
+    if (a == SendAction::Transmit) tx++;
+    if (a == SendAction::GiveUp) {
+      give_up_at = t;
+      break;
+    }
+  }
+  TEST_ASSERT_EQUAL(1, tx);
+  TEST_ASSERT_EQUAL_UINT32(30, give_up_at);
+}
+
+void test_max_tx_is_clamped_to_4() {
+  Sender s;
+  s.start(1, 0, 9);
+  TEST_ASSERT_EQUAL(4, run_to_give_up(s, 0));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_first_poll_transmits_once);
@@ -97,5 +120,7 @@ int main() {
   RUN_TEST(test_retry_schedule_then_give_up);
   RUN_TEST(test_consecutive_give_ups_counts_and_resets);
   RUN_TEST(test_millis_wraparound);
+  RUN_TEST(test_single_try_gives_up_after_30ms);
+  RUN_TEST(test_max_tx_is_clamped_to_4);
   return UNITY_END();
 }
