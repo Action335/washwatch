@@ -5,15 +5,14 @@
 #include <WiFi.h>
 #include <time.h>
 
-#include "espnow_rx.h"
 #include "secrets.h"
+#include "state.h"
 #include "telemetry_json.h"
 
-constexpr const char* GW_ID = "airbox-01";
 constexpr const char* MQTT_HOST = "mqtt.netpie.io";
 constexpr uint16_t MQTT_PORT = 1883;  // TLS (8883) comes with E5 in a later plan
 constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
-constexpr size_t PAYLOAD_MAX = 2048;  // worst case for MAX_NODES is ~1.2 KB
+constexpr size_t PAYLOAD_MAX = 1024;  // two washers + env is about 500 bytes at most
 constexpr uint32_t RECONNECT_MS = 5000;
 constexpr uint32_t WIFI_FIRST_RETRY_MS = 2000;  // most drops are a short beacon loss
 constexpr uint32_t WIFI_RETRY_MS = 30000;       // then back off: each attempt costs ESP-NOW reception
@@ -55,11 +54,14 @@ static bool ensure_connected(uint32_t now, uint32_t& last_try) {
 }
 
 static void publish_shadow() {
-  xSemaphoreTake(g_nodes_mtx, portMAX_DELAY);
+  WasherView views[WASHER_COUNT];
+  xSemaphoreTake(g_state_mtx, portMAX_DELAY);
+  for (size_t i = 0; i < WASHER_COUNT; i++) views[i] = {g_washers[i].node_id, &g_washers[i].cycle};
   // Read the time under the lock, so no node can be stored "after" it.
   uint32_t now = millis();
-  size_t n = build_shadow_update(g_nodes, GW_ID, (uint32_t)time(nullptr), now, payload, sizeof(payload));
-  xSemaphoreGive(g_nodes_mtx);
+  size_t n = build_shadow_update(g_nodes, views, WASHER_COUNT, g_env, GW_ID, (uint32_t)time(nullptr), now,
+                                 payload, sizeof(payload));
+  xSemaphoreGive(g_state_mtx);
   if (n == 0) {
     Serial.println("mqtt: payload too large, skipped");
     return;

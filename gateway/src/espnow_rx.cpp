@@ -4,8 +4,7 @@
 #include <esp_now.h>
 #include <string.h>
 
-NodeTable g_nodes;
-SemaphoreHandle_t g_nodes_mtx;
+#include "state.h"
 
 struct RxItem {
   uint8_t mac[6];
@@ -52,14 +51,24 @@ static void espnow_rx_task(void*) {
   RxItem item;
   for (;;) {
     if (xQueueReceive(q_node_msgs, &item, portMAX_DELAY) != pdTRUE) continue;
-    xSemaphoreTake(g_nodes_mtx, portMAX_DELAY);
-    Ingest r = g_nodes.ingest(item.msg, millis());
-    xSemaphoreGive(g_nodes_mtx);
+    CycleEvent ev = CycleEvent::None;
+    xSemaphoreTake(g_state_mtx, portMAX_DELAY);
+    uint32_t now = millis();
+    Ingest r = g_nodes.ingest(item.msg, now);
+    // Only new messages drive the cycle; a duplicate is a retransmit of one already used.
+    Washer* w = r == Ingest::Accepted ? washer_for(item.msg.node_id) : nullptr;
+    if (w != nullptr) ev = w->cycle.on_message(item.msg, now);
+    xSemaphoreGive(g_state_mtx);
     // ACK duplicates too: a duplicate means the node missed our first ACK.
     if (r != Ingest::Rejected) send_ack(item.mac, item.msg);
+    if (ev != CycleEvent::None) {
+      Notice n = {item.msg.node_id, ev};
+      xQueueSend(q_notices, &n, 0);
+    }
     counts[(int)r]++;
-    Serial.printf("rx node=%u seq=%lu %s (acc=%lu dup=%lu rej=%lu)\n", item.msg.node_id,
-                  (unsigned long)item.msg.seq, name(r), (unsigned long)counts[0],
+    Serial.printf("rx node=%u seq=%lu %s phase=%u std=%u lid=%u ev=%u (acc=%lu dup=%lu rej=%lu)\n",
+                  item.msg.node_id, (unsigned long)item.msg.seq, name(r), item.msg.phase, item.msg.std_mg,
+                  (item.msg.flags & FLAG_LID_OPEN) ? 1 : 0, (unsigned)ev, (unsigned long)counts[0],
                   (unsigned long)counts[1], (unsigned long)counts[2]);
   }
 }

@@ -1,0 +1,36 @@
+// Gateway state shared between tasks. Every access to g_nodes, g_washers and g_env holds g_state_mtx.
+#pragma once
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
+
+#include "node_table.h"
+#include "telemetry_json.h"
+#include "washer_cycle.h"
+
+constexpr const char* GW_ID = "washwatch-01";
+
+struct Washer {
+  uint8_t node_id;
+  WasherCycle cycle;
+};
+
+// Nominal cycle lengths (minutes): set them from each washer's own display.
+constexpr size_t WASHER_COUNT = 2;
+extern Washer g_washers[WASHER_COUNT];
+
+extern NodeTable g_nodes;
+extern GatewaySensors g_env;
+extern SemaphoreHandle_t g_state_mtx;
+
+// Cycle events for notify_task.
+struct Notice {
+  uint8_t node_id;
+  CycleEvent event;
+};
+extern QueueHandle_t q_notices;
+
+// Creates the mutex and the notice queue. Call first in setup().
+void state_init();
+// Returns the washer for a node ID, or nullptr. Caller holds g_state_mtx.
+Washer* washer_for(uint8_t node_id);

@@ -1,18 +1,26 @@
-// AirBox purifier gateway: receives node data over ESP-NOW, publishes it to NETPIE.
-// Control and receive run locally, so they keep working when the internet is down.
+// WashWatch gateway: receives washer node data over ESP-NOW, runs the cycle logic, drives the
+// dial and flag servos, publishes to NETPIE and sends Discord alerts.
+// Receive and control run locally, so they keep working when the internet is down.
+//
+// Tasks: espnow_rx (5) > control (4) > cloud (2) > notify (1), sharing state under g_state_mtx.
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
 
 #include "cloud.h"
+#include "control.h"
 #include "espnow_rx.h"
+#include "notify.h"
 #include "secrets.h"
+#include "state.h"
 
 constexpr uint32_t WIFI_WAIT_MS = 15000;
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("AirBox gateway starting");
+  Serial.println("WashWatch gateway starting");
+  state_init();
+  control_start();  // servos to their rest position before anything else
 
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);  // with modem sleep on, ESP-NOW misses packets
@@ -30,10 +38,10 @@ void setup() {
     Serial.println("esp_now_init failed, rebooting");
     ESP.restart();
   }
-  g_nodes_mtx = xSemaphoreCreateMutex();
   espnow_rx_start();
   cloud_start();
+  notify_start();
 }
 
-// All work happens in espnow_rx_task and cloud_task.
+// All work happens in the tasks.
 void loop() { vTaskDelay(portMAX_DELAY); }
