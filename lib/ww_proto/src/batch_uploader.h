@@ -21,11 +21,15 @@ class BatchUploader {
   size_t on_response(uint32_t ackid, int errcode);
   // Records poll() gave up on after BATCH_MAX_TIMEOUTS; the caller pops them. Reported once.
   size_t take_dropped();
-  // Forget the in-flight batch; it is sent again after reconnecting.
-  void on_disconnect() { in_flight_ = false; }
+  // Forget the in-flight batch; it is sent again after reconnecting. An unanswered batch counts
+  // like a timeout, so one that makes NETPIE close the connection is dropped, not resent forever.
+  void on_disconnect();
   uint32_t rejected() const { return rejected_; }
 
  private:
+  // One more unanswered send of the in-flight batch; drops it at BATCH_MAX_TIMEOUTS (returns true).
+  bool count_unanswered();
+
   bool in_flight_ = false;
   bool answered_ = false;  // the in-flight send got an error reply: wait, then resend
   size_t n_ = 0;           // records in the in-flight batch

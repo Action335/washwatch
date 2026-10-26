@@ -9,7 +9,8 @@
 constexpr uint32_t IDLE_LOG_EVERY = 15;  // one idle window in 15 = one per 30 s
 constexpr size_t LOG_BATCH_MAX = 50;      // NETPIE allows 100; 50 keeps the MQTT buffer at 6 KB
 
-// Every window while the washer is active, one idle window in IDLE_LOG_EVERY, and every lid change.
+// Every window while the washer is running or moving, one quiet window in IDLE_LOG_EVERY (idle or
+// done), and every lid change.
 // prev_flags: flags of the node's previous accepted message (0 if none).
 bool should_log(const node_msg_t& m, WasherState state_after, uint8_t prev_flags);
 LogRecord make_record(const node_msg_t& m, WasherState state_after, uint32_t now_ms);

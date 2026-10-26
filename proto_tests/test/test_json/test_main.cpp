@@ -73,7 +73,7 @@ void test_running_washer_fields() {
   NodeTable t;
   t.ingest(washer(1, 7, PHASE_SPIN, false), 2000);
   WasherCycle c1(45);
-  c1.on_message(washer(1, 7, PHASE_SPIN, false), 2000);
+  for (uint32_t i = 0; i < START_WINDOWS; i++) c1.on_message(washer(1, 7 + i, PHASE_SPIN, false), 2000 + i * 2000);
   WasherView w[] = {{1, &c1}};
   JsonDocument doc = build(t, w, 1, ENV, 2000 + 5 * 60000);
   JsonObject w1 = doc["data"]["washers"]["1"];

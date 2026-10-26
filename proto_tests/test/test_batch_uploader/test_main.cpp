@@ -105,6 +105,30 @@ void test_rejected_three_times_is_dropped() {
   TEST_ASSERT_EQUAL_UINT32(10, u.rejected());
 }
 
+void test_disconnects_count_toward_drop() {
+  // A batch that makes NETPIE close the connection must not be resent forever.
+  BatchUploader u;
+  for (int i = 1; i < BATCH_MAX_TIMEOUTS; i++) {
+    TEST_ASSERT_EQUAL(10, u.poll(10, i));
+    u.on_disconnect();
+    TEST_ASSERT_EQUAL(0, u.take_dropped());
+  }
+  TEST_ASSERT_EQUAL(10, u.poll(10, 100));
+  u.on_disconnect();
+  TEST_ASSERT_EQUAL(10, u.take_dropped());
+  TEST_ASSERT_EQUAL_UINT32(10, u.rejected());
+}
+
+void test_disconnect_after_error_reply_is_not_a_timeout() {
+  BatchUploader u;
+  for (int i = 0; i < BATCH_MAX_TIMEOUTS; i++) {
+    u.poll(10, i * BATCH_ACK_TIMEOUT_MS);
+    if (i < BATCH_MAX_REJECTS - 1) u.on_response(u.ackid(), 0);  // keep the reject count low
+    u.on_disconnect();
+  }
+  TEST_ASSERT_EQUAL(0, u.take_dropped());
+}
+
 void test_disconnect_clears_in_flight() {
   BatchUploader u;
   u.poll(10, 0);
@@ -129,6 +153,8 @@ int main() {
   RUN_TEST(test_repeated_timeouts_eventually_drop);
   RUN_TEST(test_ack_resets_timeout_count);
   RUN_TEST(test_rejected_three_times_is_dropped);
+  RUN_TEST(test_disconnects_count_toward_drop);
+  RUN_TEST(test_disconnect_after_error_reply_is_not_a_timeout);
   RUN_TEST(test_disconnect_clears_in_flight);
   RUN_TEST(test_response_while_idle_is_ignored);
   return UNITY_END();

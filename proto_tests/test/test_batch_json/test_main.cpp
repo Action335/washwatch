@@ -39,7 +39,12 @@ static JsonDocument parse(size_t n) {
 void test_logs_every_window_while_active() {
   TEST_ASSERT_TRUE(should_log(msg(1, PHASE_WASH), WasherState::Idle, 0));
   TEST_ASSERT_TRUE(should_log(msg(1, PHASE_IDLE), WasherState::Running, 0));
-  TEST_ASSERT_TRUE(should_log(msg(1, PHASE_IDLE), WasherState::Done, 0));
+}
+
+void test_quiet_done_is_logged_at_idle_rate() {
+  // A washer can sit in Done for hours (nobody opens the lid): full-rate logging would blow the quota.
+  TEST_ASSERT_FALSE(should_log(msg(1, PHASE_IDLE), WasherState::Done, 0));
+  TEST_ASSERT_TRUE(should_log(msg(15, PHASE_IDLE), WasherState::Done, 0));
 }
 
 void test_idle_logs_one_in_fifteen() {
@@ -125,6 +130,7 @@ void test_fifty_records_fit_in_6k() {
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_logs_every_window_while_active);
+  RUN_TEST(test_quiet_done_is_logged_at_idle_rate);
   RUN_TEST(test_idle_logs_one_in_fifteen);
   RUN_TEST(test_lid_change_is_always_logged);
   RUN_TEST(test_make_record_copies_fields);

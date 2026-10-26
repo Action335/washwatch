@@ -31,17 +31,31 @@ void test_starts_idle() {
   TEST_ASSERT_EQUAL(0, c.minutes_left(0));
 }
 
+// Sustained motion: START_WINDOWS moving messages in a row, 2 s apart, from t0.
+static CycleEvent start(WasherCycle& c, uint32_t t0) {
+  return feed(c, PHASE_WASH, t0, t0 + START_WINDOWS * 2000);
+}
+
 void test_motion_starts_a_cycle() {
   WasherCycle c(45);
-  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_WASH), 1000) == CycleEvent::Started);
+  TEST_ASSERT_TRUE(start(c, 1000) == CycleEvent::Started);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
-  TEST_ASSERT_EQUAL(45, c.minutes_left(1000));
+  // The cycle started at the first moving window, not when the debounce completed.
   TEST_ASSERT_EQUAL(35, c.minutes_left(1000 + 10 * MIN));
+}
+
+void test_isolated_bump_does_not_start_a_cycle() {
+  // e.g. the washer next door spinning, or someone leaning on it
+  WasherCycle c(45);
+  TEST_ASSERT_TRUE(feed(c, PHASE_WASH, 0, (START_WINDOWS - 1) * 2000) == CycleEvent::None);
+  c.on_message(msg(PHASE_IDLE), (START_WINDOWS - 1) * 2000);
+  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, START_WINDOWS * 2000, (2 * START_WINDOWS - 1) * 2000) == CycleEvent::None);
+  TEST_ASSERT_TRUE(c.state() == WasherState::Idle);
 }
 
 void test_minutes_left_never_reaches_zero_while_running() {
   WasherCycle c(45);
-  c.on_message(msg(PHASE_WASH), 0);
+  start(c, 0);
   TEST_ASSERT_EQUAL(1, c.minutes_left(60 * MIN));
 }
 
@@ -81,8 +95,8 @@ void test_opening_the_lid_collects_finished_laundry() {
 
 void test_lid_open_while_running_is_ignored() {
   WasherCycle c(45);
-  c.on_message(msg(PHASE_WASH), 0);
-  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_WASH, true), 2000) == CycleEvent::None);
+  start(c, 0);
+  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_WASH, true), START_WINDOWS * 2000) == CycleEvent::None);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
 }
 
@@ -101,9 +115,19 @@ void test_motion_after_done_resumes_running() {
   feed(c, PHASE_WASH, 0, 20 * MIN);
   feed(c, PHASE_IDLE, 20 * MIN, 25 * MIN);
   TEST_ASSERT_TRUE(c.state() == WasherState::Done);
-  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_SPIN), 25 * MIN) == CycleEvent::None);
+  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, 25 * MIN, 25 * MIN + START_WINDOWS * 2000) == CycleEvent::None);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
-  TEST_ASSERT_EQUAL(20, c.minutes_left(25 * MIN));  // keeps the original start time
+  TEST_ASSERT_EQUAL(20, c.minutes_left(25 * MIN + START_WINDOWS * 2000));  // keeps the original start time
+}
+
+void test_bump_while_done_stays_done() {
+  // A neighbour's spin must not reopen a finished cycle (and later send a second "done").
+  WasherCycle c(45);
+  feed(c, PHASE_WASH, 0, 20 * MIN);
+  feed(c, PHASE_IDLE, 20 * MIN, 25 * MIN);
+  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, 25 * MIN, 25 * MIN + 6000) == CycleEvent::None);
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 25 * MIN + 6000, 35 * MIN) != CycleEvent::Done);
+  TEST_ASSERT_TRUE(c.state() == WasherState::Done);
 }
 
 void test_imu_fault_neither_starts_nor_finishes() {
@@ -116,6 +140,7 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_starts_idle);
   RUN_TEST(test_motion_starts_a_cycle);
+  RUN_TEST(test_isolated_bump_does_not_start_a_cycle);
   RUN_TEST(test_minutes_left_never_reaches_zero_while_running);
   RUN_TEST(test_short_pause_is_not_done);
   RUN_TEST(test_long_quiet_after_running_is_done);
@@ -124,6 +149,7 @@ int main() {
   RUN_TEST(test_lid_open_while_running_is_ignored);
   RUN_TEST(test_one_reminder_when_left_uncollected);
   RUN_TEST(test_motion_after_done_resumes_running);
+  RUN_TEST(test_bump_while_done_stays_done);
   RUN_TEST(test_imu_fault_neither_starts_nor_finishes);
   return UNITY_END();
 }

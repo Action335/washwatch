@@ -4,14 +4,7 @@ size_t BatchUploader::poll(size_t buffered, uint32_t now_ms) {
   if (in_flight_) {
     // Unsigned subtraction stays correct across millis() wraparound.
     if (now_ms - sent_ms_ < BATCH_ACK_TIMEOUT_MS) return 0;
-    if (!answered_ && ++timeouts_ >= BATCH_MAX_TIMEOUTS) {
-      // NETPIE never answers this batch (e.g. it can't parse it): drop it so it can't block newer data.
-      in_flight_ = false;
-      timeouts_ = 0;
-      rejected_ += n_;
-      pending_drop_ += n_;
-      return 0;
-    }
+    if (count_unanswered()) return 0;
   }
   if (buffered == 0) {
     in_flight_ = false;
@@ -41,6 +34,21 @@ size_t BatchUploader::on_response(uint32_t ackid, int errcode) {
   rejects_ = 0;
   rejected_ += n_;
   return n_;
+}
+
+bool BatchUploader::count_unanswered() {
+  if (answered_ || ++timeouts_ < BATCH_MAX_TIMEOUTS) return false;
+  // NETPIE never answers this batch (e.g. it can't parse it): drop it so it can't block newer data.
+  in_flight_ = false;
+  timeouts_ = 0;
+  rejected_ += n_;
+  pending_drop_ += n_;
+  return true;
+}
+
+void BatchUploader::on_disconnect() {
+  if (in_flight_) count_unanswered();
+  in_flight_ = false;
 }
 
 size_t BatchUploader::take_dropped() {

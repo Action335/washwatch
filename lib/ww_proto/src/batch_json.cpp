@@ -4,7 +4,8 @@
 #include <stdio.h>
 
 bool should_log(const node_msg_t& m, WasherState state_after, uint8_t prev_flags) {
-  if (state_after != WasherState::Idle || m.phase != PHASE_IDLE) return true;
+  // Done is quiet and can last for hours (nobody opens the lid), so it is logged at the idle rate.
+  if (state_after == WasherState::Running || m.phase != PHASE_IDLE) return true;
   if ((m.flags ^ prev_flags) & FLAG_LID_OPEN) return true;
   return m.seq % IDLE_LOG_EVERY == 0;
 }
