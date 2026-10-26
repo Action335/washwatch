@@ -26,7 +26,7 @@
             "var_oncolor": null,
             "offcolor": "#222222",
             "var_offcolor": null,
-            "value": "#[\"washwatch\"][\"status\"] == 1",
+            "value": "(#[\"washwatch\"][\"status\"] == 1) || (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) != null && ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) > 0 && Date.now() / 1000 - ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) < 90)",
             "blinking": "false",
             "blinkfrequency": "1",
             "on_text": "\"online\"",

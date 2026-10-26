@@ -151,7 +151,22 @@ def test_gauge_falls_back_to_a_number(dash):
 
 def test_gateway_status_uses_device_status(dash):
     v = find(dash, "Gateway", "Gateway")["settings"]["value"]
-    assert '#["washwatch"]["status"]' in v and '["ts"]' not in v
+    assert '#["washwatch"]["status"]' in v
+
+
+def test_gateway_online_from_a_fresh_shadow(dash):
+    # NETPIE's status is only read when the dashboard loads (seen live: it stayed 0 after the
+    # device connected), so a shadow updated in the last 90 s also counts as online.
+    v = find(dash, "Gateway", "Gateway")["settings"]["value"]
+    stale = copy.deepcopy(FIXTURE)          # ts from 2025: stale
+    unsynced = copy.deepcopy(FIXTURE)
+    unsynced["ts"] = 0                      # before the gateway's clock syncs
+    [(ok1, a)] = evaluate([v], stale, status=0)
+    [(ok2, b)] = evaluate([v], unsynced, status=0)
+    [(ok3, c)] = evaluate([v], stale, status=1)
+    [(ok4, d)] = evaluate([v.replace('#["washwatch"]["shadow"]["ts"]', "(Date.now() / 1000 - 5)")], stale, status=0)
+    assert (ok1, ok2, ok3, ok4) == (True, True, True, True)
+    assert (a, b, c, d) == (False, False, True, True)
 
 
 def test_done_light_blinks(dash):

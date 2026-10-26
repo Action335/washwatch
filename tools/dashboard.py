@@ -100,10 +100,21 @@ def washer_link(n: int) -> str:
     return f'({pdr} == null) ? "{DASH}" : Math.round({pdr} * 1000) / 10 + " % · " + {age} + " s ago"'
 
 
+FRESH_S = 90  # the gateway publishes its shadow every 30 s
+
+
+def gateway_online() -> str:
+    # NETPIE's device status is only read when the dashboard loads, so a shadow updated in the
+    # last FRESH_S seconds also counts. ts is 0 until the gateway's clock syncs: not fresh.
+    ts = guarded(("ts",), "null")
+    return (f'(#["{ALIAS}"]["status"] == 1) || '
+            f"({ts} != null && {ts} > 0 && Date.now() / 1000 - {ts} < {FRESH_S})")
+
+
 def build(template: dict) -> dict:
     b = Builder(template)
     panes = [b.pane("Gateway", 1, [
-        b.light("Gateway", f'#["{ALIAS}"]["status"] == 1', "online", "offline"),
+        b.light("Gateway", gateway_online(), "online", "offline"),
         b.text("Temperature", shown(("env", "t")), "°C"),
         b.text("Humidity", shown(("env", "rh")), "%"),
         b.text("Rain sensor", shown(("env", "rain"))),
