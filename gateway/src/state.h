@@ -1,10 +1,11 @@
-// Gateway state shared between tasks. Every access to g_nodes, g_washers and g_env holds g_state_mtx.
+// Gateway state shared between tasks. Every access to g_nodes, g_washers, g_env and g_log holds g_state_mtx.
 #pragma once
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
 #include "node_table.h"
+#include "record_buffer.h"
 #include "telemetry_json.h"
 #include "washer_cycle.h"
 
@@ -20,6 +21,10 @@ constexpr size_t WASHER_COUNT = 2;
 extern Washer g_washers[WASHER_COUNT];
 
 extern NodeTable g_nodes;
+
+// Training-log records waiting to upload (E4 store-and-forward). RAM only: lost on reboot.
+constexpr size_t LOG_CAPACITY = 3000;  // 12 bytes each = ~36 KB; about 50 min of both washers running
+extern RecordBuffer g_log;
 extern GatewaySensors g_env;
 extern SemaphoreHandle_t g_state_mtx;
 

@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
+#include "certs.h"
 #include "secrets.h"
 #include "state.h"
 
@@ -25,8 +26,7 @@ static const char* text_for(CycleEvent e) {
 static bool post_discord(const char* content) {
   if (WiFi.status() != WL_CONNECTED || DISCORD_WEBHOOK_URL[0] == '\0') return false;
   WiFiClientSecure tls;
-  // TODO(E5): pin Discord's root CA instead of skipping certificate checks.
-  tls.setInsecure();
+  tls.setCACert(DISCORD_ROOT_CA);  // E5: verify Discord's chain against Google's roots
   HTTPClient http;
   if (!http.begin(tls, DISCORD_WEBHOOK_URL)) return false;
   http.addHeader("Content-Type", "application/json");

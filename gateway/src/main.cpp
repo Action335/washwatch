@@ -11,8 +11,9 @@
 #include "control.h"
 #include "espnow_rx.h"
 #include "notify.h"
-#include "secrets.h"
+#include "sim_nodes.h"
 #include "state.h"
+#include "wifi_config.h"
 
 constexpr uint32_t WIFI_WAIT_MS = 15000;
 
@@ -27,7 +28,7 @@ void setup() {
   // The core's auto-reconnect scans every channel nonstop while the router is off, so
   // ESP-NOW goes deaf. cloud_task reconnects on the last known channel instead.
   WiFi.setAutoReconnect(false);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(WIFI_NET_SSID, WIFI_NET_PASS);
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < WIFI_WAIT_MS) delay(250);
   // The nodes scan for this channel, so print it for the bench check.
@@ -41,6 +42,9 @@ void setup() {
   espnow_rx_start();
   cloud_start();
   notify_start();
+#ifdef SIM_NODES
+  sim_nodes_start();
+#endif
 }
 
 // All work happens in the tasks.

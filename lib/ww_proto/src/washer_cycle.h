@@ -8,6 +8,7 @@
 // UNCALIBRATED: set from real cycles (the longest mid-cycle soak must stay below DONE_QUIET_MS).
 constexpr uint32_t DONE_QUIET_MS = 4 * 60 * 1000;     // quiet this long after running = done
 constexpr uint32_t REMIND_AFTER_MS = 15 * 60 * 1000;  // done and still not collected
+constexpr uint8_t START_WINDOWS = 15;  // moving windows in a row (30 s) before a cycle starts or resumes
 
 enum class WasherState : uint8_t { Idle, Running, Done };
 enum class CycleEvent : uint8_t { None, Started, Done, Reminder, Collected };
@@ -29,5 +30,7 @@ class WasherCycle {
   uint32_t done_ms_ = 0;
   uint32_t quiet_since_ms_ = 0;
   bool quiet_ = false;     // the last message showed no motion
+  uint8_t moving_run_ = 0;     // moving messages in a row (stops counting at 255)
+  uint32_t run_start_ms_ = 0;  // time of the first message in that run
   bool reminded_ = false;  // the reminder for this Done was sent
 };

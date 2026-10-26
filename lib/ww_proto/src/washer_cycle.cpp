@@ -21,12 +21,23 @@ CycleEvent WasherCycle::on_message(const node_msg_t& m, uint32_t now_ms) {
     quiet_ = true;
     quiet_since_ms_ = now_ms;
   }
+  // Only sustained motion counts as a washer running: a bump or the washer next door spinning
+  // gives a few moving windows, a real cycle many in a row.
+  if (!moving) {
+    moving_run_ = 0;
+  } else if (moving_run_ == 0) {
+    moving_run_ = 1;
+    run_start_ms_ = now_ms;
+  } else if (moving_run_ < UINT8_MAX) {
+    moving_run_++;
+  }
+  const bool sustained = moving_run_ >= START_WINDOWS;
 
   switch (state_) {
     case WasherState::Idle:
-      if (moving) {
+      if (sustained) {
         state_ = WasherState::Running;
-        started_ms_ = now_ms;
+        started_ms_ = run_start_ms_;  // the cycle began at the first moving window
         return CycleEvent::Started;
       }
       return CycleEvent::None;
@@ -45,7 +56,7 @@ CycleEvent WasherCycle::on_message(const node_msg_t& m, uint32_t now_ms) {
         state_ = WasherState::Idle;
         return CycleEvent::Collected;
       }
-      if (moving) {
+      if (sustained) {
         state_ = WasherState::Running;  // a long soak, not the end; keep the start time
         return CycleEvent::None;
       }
