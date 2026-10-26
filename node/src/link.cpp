@@ -64,7 +64,7 @@ void link_begin() {
   q_acks = xQueueCreate(8, sizeof(ack_msg_t));
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
-  prefs.begin("airbox", false);
+  prefs.begin("washwatch", false);
   set_channel(prefs.getUChar("ch", 1));  // last channel that worked, so a reboot is fast
   if (esp_now_init() != ESP_OK) {
     Serial.println("link: esp_now_init failed, rebooting");

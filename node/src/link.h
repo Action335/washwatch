@@ -1,7 +1,7 @@
 // ESP-NOW link from a node to the gateway: broadcast send, ACK/retry, channel sweep.
 #pragma once
 #include <stdint.h>
-#include "airbox_msg.h"
+#include "ww_msg.h"
 
 // Sets up ESP-NOW on the last channel that worked (saved in flash).
 void link_begin();
