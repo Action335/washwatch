@@ -18,7 +18,7 @@
 constexpr const char* MQTT_HOST = "mqtt.netpie.io";
 constexpr uint16_t MQTT_PORT = 1884;  // MQTT over TLS (E5); 1883 is plain
 constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
-// Batch topic per docs.netpie.io/mqtt-api.html; confirm with tools/netpie_probe.py (README "NETPIE facts").
+// Batch topic and reply topic confirmed by tools/netpie_probe.py on 26 Oct 2026 (README "NETPIE facts").
 constexpr const char* BATCH_TOPIC = "@shadow/batch/update";
 constexpr const char* BATCH_RESPONSE_TOPIC = "@private/shadow/batch/update/response";
 constexpr size_t BATCH_MAX_BYTES = 6144;  // LOG_BATCH_MAX records fit (test_fifty_records_fit_in_6k)
@@ -101,7 +101,9 @@ static bool ensure_connected(uint32_t now, uint32_t& last_try) {
   return ok;
 }
 
-// NETPIE's reply to a batch: {"ackid":N, ...} with "errcode" only on failure.
+// NETPIE's reply to a batch: {"deviceid":..,"ackid":N,"total":..,"mints":..,"maxts":..} (probed 26 Oct 2026).
+// Refused batches (too big, malformed) get no reply at all, so the uploader's timeout does the work;
+// "errcode" is handled in case NETPIE ever sends the documented error reply.
 static void on_mqtt_message(char* topic, uint8_t* data, unsigned int len) {
   if (strcmp(topic, BATCH_RESPONSE_TOPIC) != 0) return;
   JsonDocument doc;

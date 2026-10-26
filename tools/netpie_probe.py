@@ -8,9 +8,9 @@
      mqtt.netpie.io (tools/netpie_server_certs.pem). The probe trusts only those.
 
 Usage (credentials come from env vars, never from this file):
-    pip install paho-mqtt
+    (paho-mqtt 1.x: version 2 changed the Client constructor)
     set NETPIE_CLIENT_ID=...  &  set NETPIE_TOKEN=...  &  set NETPIE_SECRET=...
-    python tools/netpie_probe.py
+    uv run --no-project --with "paho-mqtt<2" python tools/netpie_probe.py
 
 Before running, create datatag w9_std (number, TTL 1 day) on the device. Afterwards, check
 the Feed tab for two w9_std points 30 s apart, then delete the datatag.

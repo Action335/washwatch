@@ -42,11 +42,13 @@ Checked 26 Oct 2026 from the PC (openssl + `tools/netpie_probe.py`'s TLS check):
   So clients **pin both certificates** (`tools/netpie_server_certs.pem`; the gateway pins the same two by SHA-256). If NETPIE adds or rotates a broker, connections to it fail with a pin error until the new certificate is checked and added.
 - `discord.com` chains to Google Trust Services (WE1 → GTS Root R4, cross-signed by GlobalSign Root CA).
 
-Still to fill in after running `python tools/netpie_probe.py` with the device credentials:
-- Batch topic that acknowledges: TODO
-- Success ack JSON: TODO
-- 101-record batch reply (expect errcode 429): TODO
-- Shadow writes counted for one 2-record batch: TODO
+Probed 26 Oct 2026 with the device credentials (`python tools/netpie_probe.py`, run with `uv run --no-project --with "paho-mqtt<2"`):
+- **Batch topic:** `@shadow/batch/update`; replies arrive on `@private/shadow/batch/update/response`.
+- **Success reply:** `{"deviceid":"...","ackid":1,"total":2,"mints":<first ts ms>,"maxts":<last ts ms>,"cid":null}`. There is no `errcode`.
+- **Refusals are silent:** a 101-record batch (over the documented limit of 100) and malformed JSON get **no reply at all**, not the documented `errcode 429`, and the connection stays up. The gateway therefore relies on its ack timeout: an unanswered batch is resent and dropped after 6 tries (`BATCH_MAX_TIMEOUTS`), counted in `log.rejected`.
+- **No validation:** a batch with a text `ts` was acked (`"mints":"oops"`), so the payload builder must stay correct on its own (it always sends integer ms).
+- A 50-record batch (`LOG_BATCH_MAX`) is acked with `"total":50`.
+- Still to check in the portal: the Feed tab shows the two `w9_std` probe points 30 s apart (then delete the `w9_std` datatag), and the usage page shows how many shadow writes one batch costs.
 
 ## Training data (for the phase classifier)
 The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. In the NETPIE portal, create those 10 datatags (washers 1 and 2) with **TTL 14 days**: that keeps storage inside the free 1,000,000 point-month.
