@@ -74,12 +74,12 @@ void test_batch_shape_and_keys() {
   TEST_ASSERT_EQUAL_UINT32(7, doc["ackid"].as<uint32_t>());
   TEST_ASSERT_TRUE(doc["merged"].as<bool>());
   TEST_ASSERT_EQUAL(2, doc["batch"].size());
-  TEST_ASSERT_EQUAL(-9000, doc["batch"][0]["ts"].as<long>());
+  TEST_ASSERT_TRUE(doc["batch"][0]["ts"].as<int64_t>() == -9000);
   TEST_ASSERT_EQUAL(61, doc["batch"][0]["data"]["w1_std"].as<int>());
   TEST_ASSERT_EQUAL(301, doc["batch"][0]["data"]["w1_p2p"].as<int>());
   TEST_ASSERT_EQUAL(PHASE_WASH, doc["batch"][0]["data"]["w1_phase"].as<int>());
   TEST_ASSERT_EQUAL(0, doc["batch"][0]["data"]["w1_lid"].as<int>());
-  TEST_ASSERT_EQUAL(-6000, doc["batch"][1]["ts"].as<long>());
+  TEST_ASSERT_TRUE(doc["batch"][1]["ts"].as<int64_t>() == -6000);
   TEST_ASSERT_EQUAL(1, doc["batch"][1]["data"]["w2_state"].as<int>());
   TEST_ASSERT_EQUAL(1, doc["batch"][1]["data"]["w2_lid"].as<int>());
 }
@@ -97,7 +97,14 @@ void test_imu_fault_omits_vibration_keys() {
 void test_relative_ts_across_millis_wrap() {
   LogRecord r[] = {rec(1, 0xFFFFF000u, 0)};
   JsonDocument doc = parse(build_batch_update(r, 1, 0x00000800u, 1, out, sizeof(out)));
-  TEST_ASSERT_EQUAL(-6144, doc["batch"][0]["ts"].as<long>());
+  TEST_ASSERT_TRUE(doc["batch"][0]["ts"].as<int64_t>() == -6144);
+}
+
+void test_record_newer_than_now_is_ts_zero() {
+  // Logged by a higher-priority task after the caller read now: must not become -49.7 days.
+  LogRecord r[] = {rec(1, 10005, 0)};
+  JsonDocument doc = parse(build_batch_update(r, 1, 10000, 1, out, sizeof(out)));
+  TEST_ASSERT_TRUE(doc["batch"][0]["ts"].as<int64_t>() == 0);
 }
 
 void test_empty_and_too_small() {
@@ -124,6 +131,7 @@ int main() {
   RUN_TEST(test_batch_shape_and_keys);
   RUN_TEST(test_imu_fault_omits_vibration_keys);
   RUN_TEST(test_relative_ts_across_millis_wrap);
+  RUN_TEST(test_record_newer_than_now_is_ts_zero);
   RUN_TEST(test_empty_and_too_small);
   RUN_TEST(test_fifty_records_fit_in_6k);
   return UNITY_END();

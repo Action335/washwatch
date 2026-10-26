@@ -8,6 +8,12 @@ void RecordBuffer::push(const LogRecord& r) {
   }
   buf_[(head_ + count_) % cap_] = r;
   count_++;
+  pushed_++;
+}
+
+void RecordBuffer::pop_through(uint32_t end_seq) {
+  int32_t n = (int32_t)(end_seq - oldest_seq());  // <= 0: those records are already gone
+  if (n > 0) pop((size_t)n);
 }
 
 size_t RecordBuffer::peek(LogRecord* out, size_t max) const {

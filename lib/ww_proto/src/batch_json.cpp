@@ -46,6 +46,8 @@ size_t build_batch_update(const LogRecord* recs, size_t n, uint32_t now_ms, uint
     snprintf(key, sizeof(key), "w%u_lid", (unsigned)r.node_id);
     d[key] = (r.flags & FLAG_LID_OPEN) ? 1 : 0;
     uint32_t age = now_ms - r.t_ms;  // unsigned: correct across millis() wraparound
+    // A record logged just after the caller read now_ms would underflow to ~49.7 days: call it "now".
+    if (age > INT32_MAX) age = 0;
     item["ts"] = -(int64_t)age;
   }
   size_t needed = measureJson(doc);

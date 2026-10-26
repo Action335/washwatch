@@ -45,23 +45,62 @@ void test_error_keeps_records_then_retries() {
   BatchUploader u;
   u.poll(10, 0);
   TEST_ASSERT_EQUAL(0, u.on_response(u.ackid(), 429));
-  TEST_ASSERT_EQUAL(10, u.poll(10, 1));  // no need to wait for the timeout
+  TEST_ASSERT_EQUAL(0, u.poll(10, 1));  // back off: a transient error must not burn all retries at once
+  TEST_ASSERT_EQUAL(10, u.poll(10, BATCH_ACK_TIMEOUT_MS));
+}
+
+void test_second_response_for_same_ackid_is_ignored() {
+  BatchUploader u;
+  u.poll(10, 0);
+  uint32_t id = u.ackid();
+  TEST_ASSERT_EQUAL(0, u.on_response(id, 429));
+  TEST_ASSERT_EQUAL(0, u.on_response(id, 0));  // already answered
+}
+
+void test_repeated_timeouts_eventually_drop() {
+  // NETPIE never acks (e.g. it can't parse the payload): give up so newer data isn't blocked forever.
+  BatchUploader u;
+  uint32_t t = 0;
+  TEST_ASSERT_EQUAL(10, u.poll(10, t));
+  for (int i = 1; i < BATCH_MAX_TIMEOUTS; i++) {
+    t += BATCH_ACK_TIMEOUT_MS;
+    TEST_ASSERT_EQUAL(10, u.poll(10, t));  // resend
+    TEST_ASSERT_EQUAL(0, u.take_dropped());
+  }
+  t += BATCH_ACK_TIMEOUT_MS;
+  TEST_ASSERT_EQUAL(0, u.poll(10, t));  // gave up instead of resending
+  TEST_ASSERT_EQUAL(10, u.take_dropped());
+  TEST_ASSERT_EQUAL(0, u.take_dropped());  // reported once
+  TEST_ASSERT_EQUAL_UINT32(10, u.rejected());
+  TEST_ASSERT_EQUAL(10, u.poll(10, t + 1));  // the next records go out normally
+}
+
+void test_ack_resets_timeout_count() {
+  BatchUploader u;
+  uint32_t t = 0;
+  u.poll(10, t);
+  for (int i = 1; i < BATCH_MAX_TIMEOUTS; i++) u.poll(10, t += BATCH_ACK_TIMEOUT_MS);
+  TEST_ASSERT_EQUAL(10, u.on_response(u.ackid(), 0));
+  u.poll(10, t += 1);
+  for (int i = 1; i < BATCH_MAX_TIMEOUTS; i++) TEST_ASSERT_EQUAL(10, u.poll(10, t += BATCH_ACK_TIMEOUT_MS));
+  TEST_ASSERT_EQUAL(0, u.take_dropped());
 }
 
 void test_rejected_three_times_is_dropped() {
   BatchUploader u;
   uint32_t t = 0;
   for (int i = 0; i < BATCH_MAX_REJECTS - 1; i++) {
-    TEST_ASSERT_EQUAL(10, u.poll(10, t++));
+    TEST_ASSERT_EQUAL(10, u.poll(10, t));
     TEST_ASSERT_EQUAL(0, u.on_response(u.ackid(), 400));
+    t += BATCH_ACK_TIMEOUT_MS;  // each retry waits out the backoff
   }
-  TEST_ASSERT_EQUAL(10, u.poll(10, t++));
+  TEST_ASSERT_EQUAL(10, u.poll(10, t));
   TEST_ASSERT_EQUAL(10, u.on_response(u.ackid(), 400));  // give up: pop them
   TEST_ASSERT_EQUAL_UINT32(10, u.rejected());
   // The reject count starts again for the next batch.
-  TEST_ASSERT_EQUAL(4, u.poll(4, t++));
+  TEST_ASSERT_EQUAL(4, u.poll(4, t += 1));
   TEST_ASSERT_EQUAL(0, u.on_response(u.ackid(), 400));
-  TEST_ASSERT_EQUAL(4, u.poll(4, t++));
+  TEST_ASSERT_EQUAL(4, u.poll(4, t += BATCH_ACK_TIMEOUT_MS));
   TEST_ASSERT_EQUAL(4, u.on_response(u.ackid(), 0));
   TEST_ASSERT_EQUAL_UINT32(10, u.rejected());
 }
@@ -86,6 +125,9 @@ int main() {
   RUN_TEST(test_timeout_resends_with_new_ackid);
   RUN_TEST(test_stale_ackid_is_ignored);
   RUN_TEST(test_error_keeps_records_then_retries);
+  RUN_TEST(test_second_response_for_same_ackid_is_ignored);
+  RUN_TEST(test_repeated_timeouts_eventually_drop);
+  RUN_TEST(test_ack_resets_timeout_count);
   RUN_TEST(test_rejected_three_times_is_dropped);
   RUN_TEST(test_disconnect_clears_in_flight);
   RUN_TEST(test_response_while_idle_is_ignored);

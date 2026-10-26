@@ -36,6 +36,7 @@ static char payload[PAYLOAD_MAX];
 static char batch_buf[BATCH_MAX_BYTES];
 static LogRecord batch_recs[LOG_BATCH_MAX];
 static BatchUploader uploader;  // used only by cloud_task (the MQTT callback runs inside mqtt.loop())
+static uint32_t batch_end_seq = 0;  // g_log sequence just past the in-flight batch (under g_state_mtx)
 
 static uint8_t wifi_channel = 0;
 static uint32_t wifi_attempts = 0;  // reconnect attempts since the link was last up
@@ -90,7 +91,12 @@ static bool ensure_connected(uint32_t now, uint32_t& last_try) {
   // Open TLS and check the pin first: mqtt.connect() reuses this open connection, so the
   // credentials are only ever sent to a verified NETPIE broker.
   if (!open_pinned_tls()) return false;
-  bool ok = mqtt.connect(NETPIE_CLIENT_ID, NETPIE_TOKEN, NETPIE_SECRET) && mqtt.subscribe(BATCH_RESPONSE_TOPIC);
+  bool ok = mqtt.connect(NETPIE_CLIENT_ID, NETPIE_TOKEN, NETPIE_SECRET);
+  if (ok && !mqtt.subscribe(BATCH_RESPONSE_TOPIC)) {
+    // Without the ack subscription every batch would time out and be dropped: retry the whole connect.
+    mqtt.disconnect();
+    ok = false;
+  }
   Serial.printf("mqtt: connect %s (state %d)\n", ok ? "ok" : "failed", mqtt.state());
   return ok;
 }
@@ -105,17 +111,26 @@ static void on_mqtt_message(char* topic, uint8_t* data, unsigned int len) {
   size_t done = uploader.on_response(ackid, errcode);
   if (done > 0) {
     xSemaphoreTake(g_state_mtx, portMAX_DELAY);
-    g_log.pop(done);
+    g_log.pop_through(batch_end_seq);  // not pop(done): the buffer may have overwritten some meanwhile
     xSemaphoreGive(g_state_mtx);
   }
   Serial.printf("batch: ack %lu errcode %d -> %u records done\n", (unsigned long)ackid, errcode, (unsigned)done);
 }
 
 // Sends the oldest buffered records when the uploader says so (E4 store-and-forward).
-static void upload_log(uint32_t now) {
+static void upload_log() {
   xSemaphoreTake(g_state_mtx, portMAX_DELAY);
+  // Read the time under the lock, so no record in the batch is newer than now.
+  uint32_t now = millis();
   size_t n = uploader.poll(g_log.size(), now);
-  if (n > 0) n = g_log.peek(batch_recs, n);
+  if (uploader.take_dropped() > 0) {
+    g_log.pop_through(batch_end_seq);  // NETPIE never answered that batch: give up on it
+    Serial.println("batch: no ack after repeated sends, batch dropped (see log.rejected)");
+  }
+  if (n > 0) {
+    n = g_log.peek(batch_recs, n);
+    batch_end_seq = g_log.oldest_seq() + n;
+  }
   xSemaphoreGive(g_state_mtx);
   if (n == 0) return;
   size_t len = build_batch_update(batch_recs, n, now, uploader.ackid(), batch_buf, sizeof(batch_buf));
@@ -157,7 +172,7 @@ static void cloud_task(void*) {
     was_connected = connected;
     if (connected) {
       mqtt.loop();
-      upload_log(now);  // while offline, records wait in g_log (E4)
+      upload_log();  // while offline, records wait in g_log (E4)
       if (now - last_pub >= PUBLISH_PERIOD_MS) {
         last_pub = now;
         publish_shadow();

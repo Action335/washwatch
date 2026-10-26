@@ -16,10 +16,17 @@ class RecordBuffer {
   void pop(size_t n);
   uint32_t dropped() const { return dropped_; }
 
+  // Every record gets a sequence number when pushed. Remember oldest_seq() + n when sending the
+  // n oldest, then pop_through() that value on the ack: if pushes into a full buffer overwrote some
+  // of the sent records meanwhile, only the sent ones that remain are removed, never newer ones.
+  uint32_t oldest_seq() const { return pushed_ - (uint32_t)count_; }
+  void pop_through(uint32_t end_seq);
+
  private:
   LogRecord* buf_;
   size_t cap_;
   size_t head_ = 0;  // index of the oldest record
   size_t count_ = 0;
   uint32_t dropped_ = 0;
+  uint32_t pushed_ = 0;  // records pushed since boot (wraps; only differences are used)
 };
