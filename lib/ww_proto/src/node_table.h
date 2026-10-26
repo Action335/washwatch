@@ -2,7 +2,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
-#include "airbox_msg.h"
+#include "ww_msg.h"
 
 enum class Ingest { Accepted, Duplicate, Rejected };
 

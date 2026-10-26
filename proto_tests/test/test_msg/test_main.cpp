@@ -1,12 +1,12 @@
 #include <string.h>
 #include <unity.h>
-#include "airbox_msg.h"
+#include "ww_msg.h"
 
 void setUp() {}
 void tearDown() {}
 
 void test_struct_sizes() {
-  TEST_ASSERT_EQUAL(33, sizeof(node_msg_t));
+  TEST_ASSERT_EQUAL(18, sizeof(node_msg_t));
   TEST_ASSERT_EQUAL(6, sizeof(ack_msg_t));
   TEST_ASSERT_TRUE(sizeof(node_msg_t) <= 250);
 }
@@ -23,19 +23,19 @@ void test_bytes_roundtrip() {
   a.ver = MSG_VERSION;
   a.node_id = 2;
   a.seq = 70000;
-  a.pm25 = 42;
-  a.temp_c10 = -55;
-  a.lux = 800;
-  uint8_t bytes[33];
+  a.std_mg = 420;
+  a.phase = PHASE_SPIN;
+  a.flags = FLAG_LID_OPEN;
+  uint8_t bytes[18];
   memcpy(bytes, &a, sizeof(a));
   node_msg_t b;
   memcpy(&b, bytes, sizeof(b));
   TEST_ASSERT_EQUAL_MEMORY(&a, &b, sizeof(a));
   TEST_ASSERT_EQUAL(2, b.node_id);
   TEST_ASSERT_EQUAL_UINT32(70000, b.seq);
-  TEST_ASSERT_EQUAL(42, b.pm25);
-  TEST_ASSERT_EQUAL(-55, b.temp_c10);
-  TEST_ASSERT_EQUAL(800, b.lux);
+  TEST_ASSERT_EQUAL(420, b.std_mg);
+  TEST_ASSERT_EQUAL(PHASE_SPIN, b.phase);
+  TEST_ASSERT_EQUAL(FLAG_LID_OPEN, b.flags);
 }
 
 void test_next_channel_cycles_1_to_13() {

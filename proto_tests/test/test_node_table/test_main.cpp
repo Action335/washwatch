@@ -55,19 +55,19 @@ void test_rejects_invalid_ids_and_full_table() {
   TEST_ASSERT_TRUE(t.ingest(msg(255, 0, 100), 0) == Ingest::Rejected);
   for (uint8_t id = 1; id <= 8; id++) {
     node_msg_t m = msg(id, 0, 100);
-    m.pm25 = 10 * id;
+    m.std_mg = 10 * id;
     TEST_ASSERT_TRUE(t.ingest(m, 0) == Ingest::Accepted);
   }
   TEST_ASSERT_TRUE(t.ingest(msg(9, 0, 100), 0) == Ingest::Rejected);
   TEST_ASSERT_EQUAL(8, t.count());
-  TEST_ASSERT_EQUAL(10, t.find(1)->last.pm25);
+  TEST_ASSERT_EQUAL(10, t.find(1)->last.std_mg);
   TEST_ASSERT_NULL(t.find(9));
 }
 
 void test_rejects_wrong_version() {
   NodeTable t;
   node_msg_t m = msg(1, 0, 100);
-  m.ver = 2;
+  m.ver = MSG_VERSION + 1;
   TEST_ASSERT_TRUE(t.ingest(m, 0) == Ingest::Rejected);
   TEST_ASSERT_EQUAL(0, t.count());
 }

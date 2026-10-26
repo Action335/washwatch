@@ -1,7 +1,7 @@
 // Node-side ACK/retry state machine. Time is passed in, so it runs on the PC too.
 #pragma once
 #include <stdint.h>
-#include "airbox_msg.h"
+#include "ww_msg.h"
 
 enum class SendAction { None, Transmit, GiveUp };
 
