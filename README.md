@@ -48,7 +48,8 @@ Probed 26 Oct 2026 with the device credentials (`python tools/netpie_probe.py`, 
 - **Refusals are silent:** a 101-record batch (over the documented limit of 100) and malformed JSON get **no reply at all**, not the documented `errcode 429`, and the connection stays up. The gateway therefore relies on its ack timeout: an unanswered batch is resent and dropped after 6 tries (`BATCH_MAX_TIMEOUTS`), counted in `log.rejected`.
 - **No validation:** a batch with a text `ts` was acked (`"mints":"oops"`), so the payload builder must stay correct on its own (it always sends integer ms).
 - A 50-record batch (`LOG_BATCH_MAX`) is acked with `"total":50`.
-- Still to check in the portal: the Feed tab shows the two `w9_std` probe points 30 s apart (then delete the `w9_std` datatag), and the usage page shows how many shadow writes one batch costs.
+- **The Feed only stores fields that already have a datatag** when the data arrives: the first probe (before any datatag existed) reached the shadow (`w9_std` = 550) but stored 0 Feed points (checked with the Data Store API). Create the `w1_*`/`w2_*` datatags before the gateway starts logging.
+- Still to check in the portal: the usage page shows how many shadow writes one batch costs.
 
 ## Training data (for the phase classifier)
 The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. In the NETPIE portal, create those 10 datatags (washers 1 and 2) with **TTL 14 days**: that keeps storage inside the free 1,000,000 point-month.

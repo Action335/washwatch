@@ -32,7 +32,8 @@ replies: "queue.Queue[tuple[str, str]]" = queue.Queue()
 
 
 def batch(ackid: int, n: int) -> dict:
-    records = [{"data": {"w9_std": 11 * (i + 1)}, "ts": -60000 + 30000 * i} for i in range(n)]
+    # Every point in the past, 30 s apart, oldest first (a future ts would also freeze the shadow).
+    records = [{"data": {"w9_std": 11 * (i + 1)}, "ts": -30000 * (n - i)} for i in range(n)]
     return {"ackid": ackid, "merged": True, "batch": records}
 
 
