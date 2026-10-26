@@ -15,7 +15,8 @@
 ## How it works
 - **Node** (`node/src/main.cpp`): `sample_task` reads the MPU6050 at 100 Hz; every 2 s `link_task` sends mean/std/peak-to-peak of |a|, a phase (idle/wash/spin) and the lid state. The reed switch ISR sends a lid change straight away.
 - **Gateway** (`gateway/src/`): `espnow_rx` (prio 5) ACKs and feeds `WasherCycle`; `control` (4) drives the servos and reads PIR/DHT22/rain; `cloud` (2) publishes every 10 s; `notify` (1) posts Discord alerts on done, a 15-minute reminder, and collected.
-- **Not yet done:** the phase is a threshold rule (`STD_WASH_MG`, `STD_SPIN_MG` in `features.h`) and minutes left is a nominal cycle length (`state.cpp`). Both are uncalibrated until real cycles are recorded; the trained classifier (E7) replaces the rule. MQTT over TLS and Discord certificate checks (E5) and offline buffering (E4 store-and-forward) are still to do.
+- **Not yet done:** the phase is a threshold rule (`STD_WASH_MG`, `STD_SPIN_MG` in `features.h`) and minutes left is a nominal cycle length (`state.cpp`). Both are uncalibrated until real cycles are recorded; the trained classifier (E7) replaces the rule.
+- **Cloud security (E5):** MQTT runs over TLS on port 1884 and the gateway only sends its NETPIE credentials after the server certificate matches one of the two pinned fingerprints (`gateway/src/certs.h`, see "NETPIE facts"). Discord webhooks are verified against Google Trust Services roots (GTS Root R1/R4, valid until 2036). No secrets are in the repository.
 
 ## Setup
 1. Install PlatformIO (VS Code extension or `pip install platformio`) and a host gcc for the PC tests (Windows: `winget install BrechtSanders.WinLibs.POSIX.UCRT`, then put its `mingw64/bin` on PATH).
