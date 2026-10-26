@@ -1,0 +1,37 @@
+{
+  "data": {
+    "gw": "washwatch-01",
+    "ts": 1761500000,
+    "env": {
+      "t": 29.5,
+      "rh": 71,
+      "rain": 1200,
+      "pir": true
+    },
+    "log": {
+      "buffered": 12,
+      "dropped": 3,
+      "rejected": 0
+    },
+    "washers": {
+      "1": {
+        "state": "running",
+        "min_left": 40,
+        "online": false,
+        "phase": "spin",
+        "std_mg": 180,
+        "p2p_mg": 900,
+        "imu_fault": false,
+        "lid_open": false,
+        "seq": 21,
+        "age_s": 272,
+        "pdr": 1
+      },
+      "2": {
+        "state": "idle",
+        "min_left": 0,
+        "online": false
+      }
+    }
+  }
+}

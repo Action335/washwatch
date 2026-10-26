@@ -1,6 +1,8 @@
 #include <ArduinoJson.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
+#include <string>
 #include <unity.h>
 #include "telemetry_json.h"
 
@@ -114,6 +116,47 @@ void test_imu_fault_hides_vibration() {
   TEST_ASSERT_TRUE(w1["imu_fault"].as<bool>());
 }
 
+// dashboard/shadow_sample.json, found from this file's path (PlatformIO doesn't fix the working
+// directory of native tests); falls back to a path relative to proto_tests/.
+static bool read_fixture(std::string& text) {
+  std::string here = __FILE__;
+  size_t cut = here.find_last_of("/\\");
+  const std::string candidates[] = {
+      (cut == std::string::npos ? std::string(".") : here.substr(0, cut)) + "/../../../dashboard/shadow_sample.json",
+      "../dashboard/shadow_sample.json",
+  };
+  for (const std::string& path : candidates) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == nullptr) continue;
+    char buf[512];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) text.append(buf, n);
+    fclose(f);
+    return true;
+  }
+  return false;
+}
+
+// The dashboard (tools/dashboard.py) reads the shadow by these paths: if the firmware's shadow
+// changes, update dashboard/shadow_sample.json and regenerate the dashboard.
+void test_shadow_matches_dashboard_fixture() {
+  NodeTable t;
+  WasherCycle c1(45), c2(45);
+  for (uint32_t i = 0; i < START_WINDOWS; i++) {
+    node_msg_t m = washer(1, 7 + i, PHASE_SPIN, false);
+    t.ingest(m, 2000 + i * 2000);
+    c1.on_message(m, 2000 + i * 2000);
+  }
+  WasherView w[] = {{1, &c1}, {2, &c2}};
+  JsonDocument built = build(t, w, 2, ENV, 2000 + 5 * 60000);
+
+  std::string text;
+  TEST_ASSERT_TRUE_MESSAGE(read_fixture(text), "fixture not found: dashboard/shadow_sample.json");
+  JsonDocument fixture;
+  TEST_ASSERT_TRUE(deserializeJson(fixture, text) == DeserializationError::Ok);
+  TEST_ASSERT_TRUE_MESSAGE(built == fixture, "firmware shadow differs from dashboard/shadow_sample.json");
+}
+
 void test_too_small_buffer_returns_zero() {
   NodeTable t;
   WasherCycle c1(45);
@@ -130,6 +173,7 @@ int main() {
   RUN_TEST(test_running_washer_fields);
   RUN_TEST(test_unheard_washer_shows_state_only);
   RUN_TEST(test_imu_fault_hides_vibration);
+  RUN_TEST(test_shadow_matches_dashboard_fixture);
   RUN_TEST(test_too_small_buffer_returns_zero);
   return UNITY_END();
 }
