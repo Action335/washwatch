@@ -30,3 +30,19 @@ pio test -d proto_tests -e native -f test_washer_cycle  # one suite
 pio run -d node -e washer1 -t upload -t monitor
 pio run -d gateway -t upload -t monitor
 ```
+
+## NETPIE facts
+Checked 26 Oct 2026 from the PC (openssl + `tools/netpie_probe.py`'s TLS check):
+- MQTT over TLS is **port 1884** (1883 is plain).
+- `mqtt.netpie.io` (203.150.88.229) is two brokers behind one address, each with its own certificate, both issued by NETPIE's **private** CA "NEXPIE Device Broker" (not published, not sent by the server), both valid until 12 Sep 2036:
+  - `2D:56:F9:F3:AA:B9:63:9E:A9:A4:B6:4B:B1:DC:20:99:32:13:BC:0A:8A:7D:A9:9F:44:FC:FE:86:37:F0:9E:A8`
+  - `91:D7:1A:00:54:40:C3:DC:95:2D:7D:5D:BB:B2:B6:94:35:F9:3F:7D:47:4E:83:AA:2C:81:B1:64:75:59:C7:46`
+  
+  So clients **pin both certificates** (`tools/netpie_server_certs.pem`; the gateway pins the same two by SHA-256). If NETPIE adds or rotates a broker, connections to it fail with a pin error until the new certificate is checked and added.
+- `discord.com` chains to Google Trust Services (WE1 → GTS Root R4, cross-signed by GlobalSign Root CA).
+
+Still to fill in after running `python tools/netpie_probe.py` with the device credentials:
+- Batch topic that acknowledges: TODO
+- Success ack JSON: TODO
+- 101-record batch reply (expect errcode 429): TODO
+- Shadow writes counted for one 2-record batch: TODO
