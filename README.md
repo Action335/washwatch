@@ -48,13 +48,14 @@ Probed 26 Oct 2026 with the device credentials (`python tools/netpie_probe.py`, 
 - **Refusals are silent:** a 101-record batch (over the documented limit of 100) and malformed JSON get **no reply at all**, not the documented `errcode 429`, and the connection stays up. The gateway therefore relies on its ack timeout: an unanswered batch is resent and dropped after 6 tries (`BATCH_MAX_TIMEOUTS`), counted in `log.rejected`.
 - **No validation:** a batch with a text `ts` was acked (`"mints":"oops"`), so the payload builder must stay correct on its own (it always sends integer ms).
 - A 50-record batch (`LOG_BATCH_MAX`) is acked with `"total":50`.
-- **The Feed only stores fields that already have a datatag** when the data arrives: the first probe (before any datatag existed) reached the shadow (`w9_std` = 550) but stored 0 Feed points (checked with the Data Store API). Create the `w1_*`/`w2_*` datatags before the gateway starts logging.
+- **The Feed only stores fields that already have a datatag** when the data arrives, and datatags are created in the device's **Feed tab → "+ Add datatag"** (Data Path = the shadow key, e.g. `w1_std`; Data Type Number; TTL), not in the Schema tab. Before that the probe reached the shadow but stored 0 Feed points. After creating them (26 Oct 2026), a gateway-shaped batch stored all 10 `w1_*`/`w2_*` fields (checked with the Data Store API, `POST https://ds.netpie.io/feed/api/v1/datapoints/query`, header `Authorization: Device <ClientID>:<Token>`).
+- TTL choices are fixed: 5/15/30 min, 1/2/4/8/12 h, 1/2/3 days, **1 week**, 1/3/6 months, 1 year. There is no 14 days.
 - Still to check in the portal: the usage page shows how many shadow writes one batch costs.
 
 ## Training data (for the phase classifier)
-The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. In the NETPIE portal, create those 10 datatags (washers 1 and 2) with **TTL 14 days**: that keeps storage inside the free 1,000,000 point-month.
+The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. The 10 datatags (washers 1 and 2) exist on the device with **TTL 1 week** (created 26 Oct 2026). 1 week keeps storage around 440k point-month, inside the free 1,000,000; 1 month would be about 1.9M.
 
-To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w2_*` datatags and a date range → CSV. **Export at least once a week**, because points older than 14 days are deleted.
+To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w2_*` datatags and a date range → CSV. **Export at least once a week (e.g. every Sunday)**, because points older than 1 week are deleted.
 
 Records wait in a RAM buffer (3,000 records, about 50 min of both washers running) while the cloud is unreachable and upload oldest-first when it is back (E4). The dashboard's `log` object shows `buffered`, `dropped` (buffer overflowed) and `rejected` (NETPIE refused a batch 3 times). Limitation: the buffer is in RAM, so records still waiting are lost if the gateway reboots during an outage.
 
