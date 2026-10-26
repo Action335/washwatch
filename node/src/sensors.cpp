@@ -3,9 +3,6 @@
 #include <Arduino.h>
 #include <math.h>
 
-#if HAS_PMS
-#include "pms5003.h"
-#endif
 #if HAS_DHT
 #include <DHT.h>
 #endif
@@ -14,19 +11,13 @@
 #include <Wire.h>
 #endif
 
-// Pins (AIRBOX_DESIGN.md §4). MQ-135 must be on an ADC1 pin: ADC2 stops working with Wi-Fi on.
-constexpr int PIN_PMS_RX = 16, PIN_PMS_TX = 17;
+// Pins. MQ-135 must be on an ADC1 pin: ADC2 stops working with Wi-Fi on.
 constexpr int PIN_DHT = 4;
 constexpr int PIN_MQ = 34;
 constexpr int PIN_SDA = 21, PIN_SCL = 22;
 
 constexpr uint32_t MQ_WARMUP_MS = 180000;  // heater settling after power-on
-constexpr uint32_t PMS_READ_TIMEOUT_MS = 200;
-constexpr uint32_t PMS_BOOT_DELAY_MS = 1000;  // sensor ignores commands right after power-on
 
-#if HAS_PMS
-static Pms5003Parser pms;
-#endif
 #if HAS_DHT
 static DHT dht(PIN_DHT, DHT22);
 #endif
@@ -46,11 +37,6 @@ static void clear_fields(node_msg_t& m) {
 }
 
 void sensors_begin() {
-#if HAS_PMS
-  Serial2.begin(9600, SERIAL_8N1, PIN_PMS_RX, PIN_PMS_TX);
-  delay(PMS_BOOT_DELAY_MS);
-  Serial2.write(PMS_CMD_PASSIVE, sizeof(PMS_CMD_PASSIVE));
-#endif
 #if HAS_DHT
   dht.begin();
 #endif
@@ -62,31 +48,6 @@ void sensors_begin() {
   lux_ok = lux_meter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
 #endif
 }
-
-#if HAS_PMS
-static void read_pms(node_msg_t& m) {
-  while (Serial2.available()) Serial2.read();  // drop stale bytes
-  pms.reset();                                 // and any half frame left from last cycle
-  Serial2.write(PMS_CMD_READ, sizeof(PMS_CMD_READ));
-  uint32_t t0 = millis();
-  while (millis() - t0 < PMS_READ_TIMEOUT_MS) {
-    if (Serial2.available() && pms.feed(Serial2.read())) {
-      const PmsReading& r = pms.reading();
-      m.pm1 = r.pm1;
-      m.pm25 = r.pm25;
-      m.pm10 = r.pm10;
-      m.n03 = r.n03;
-      m.n05 = r.n05;
-      m.n10 = r.n10;
-      m.n25 = r.n25;
-      return;
-    }
-  }
-  m.flags |= FLAG_PMS_FAULT;
-  // The passive-mode command may have been lost (e.g. at power-on): send it again.
-  Serial2.write(PMS_CMD_PASSIVE, sizeof(PMS_CMD_PASSIVE));
-}
-#endif
 
 #if SIMULATED
 // Synthetic readings so the gateway and dashboard can show a third node (Scalability 2 pts).
@@ -105,9 +66,6 @@ void sensors_read(node_msg_t& m) {
   clear_fields(m);
 #if SIMULATED
   read_simulated(m);
-#endif
-#if HAS_PMS
-  read_pms(m);
 #endif
 #if HAS_DHT
   float t = dht.readTemperature(), h = dht.readHumidity();

@@ -1,13 +1,13 @@
-# AirBox
+# WashWatch firmware (from the AirBox pipeline)
 
-AI-driven DIY PM2.5 air purifier for dorm rooms (2110356 Embedded Systems final project, 2026).
+2110356 Embedded Systems final project, 2026. This code started as AirBox (dropped 26 Oct 2026). The node→gateway→cloud pipeline is kept for WashWatch; the message format and node sensors are still AirBox-shaped and get replaced when the WashWatch node is written.
 
 | Folder | What |
 |---|---|
-| `lib/airbox_proto/` | Shared, Arduino-free protocol code: message format, PMS5003 parser, ACK/retry, node table, NETPIE payload |
+| `lib/airbox_proto/` | Shared, Arduino-free protocol code: message format, ACK/retry, node table, NETPIE payload |
 | `proto_tests/` | Unit tests for `airbox_proto`, run on the PC |
 | `node/` | Sensor node firmware (ESP32): envs `indoor`, `outdoor`, `sim` |
-| `gateway/` | Purifier gateway firmware (ESP32-S3) |
+| `gateway/` | Gateway firmware |
 | `dashboard/` | NETPIE schema and Freeboard export |
 | `tools/` | Helper scripts |
 
@@ -21,7 +21,7 @@ AI-driven DIY PM2.5 air purifier for dorm rooms (2110356 Embedded Systems final 
 
 ```sh
 pio test -d proto_tests -e native            # all PC unit tests
-pio test -d proto_tests -e native -f test_pms  # one suite
+pio test -d proto_tests -e native -f test_sender  # one suite
 pio run -d node -e indoor -t upload -t monitor
 pio run -d gateway -t upload -t monitor
 ```
