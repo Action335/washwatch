@@ -60,3 +60,10 @@ To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w
 Records wait in a RAM buffer (3,000 records, about 50 min of both washers running) while the cloud is unreachable and upload oldest-first when it is back (E4). The dashboard's `log` object shows `buffered`, `dropped` (buffer overflowed) and `rejected` (NETPIE refused a batch 3 times). Limitation: the buffer is in RAM, so records still waiting are lost if the gateway reboots during an outage.
 
 Simulation build: `pio run -d gateway -e gateway_sim` runs two simulated washer nodes on Wokwi's open Wi-Fi against the real NETPIE device in `secrets.h`. Add `-DSIM_OUTAGE` to its `build_flags` to cut the cloud off from 20 s to 50 s of uptime.
+
+## Dashboard (NETPIE)
+Portal → project WashWatch → **Console → Dashboard**. A dashboard reads the device through a **data source** added in its **Settings** tab ("Add source": Type Device, Device `washwatch-gateway`, **Alias `washwatch`**, privileges **Read Shadow + Read Feed** only). The alias is not part of an exported or imported file, so add it to any new dashboard before importing.
+
+Widgets read the shadow as `#["washwatch"]["shadow"]["washers"]["1"]["state"]`, and VALUE fields are JavaScript expressions (checked 26 Oct 2026: a nested path and `(x == null ? "–" : x)` both render). A field published as `null` is removed from the shadow, so a guard must test `== null` (which also matches a missing field). A Gauge with a non-number value shows `NaN`, so its guard must fall back to a number.
+
+`dashboard/template_export.json` is an export of the probe dashboard `washwatch-probe` (one Text, Indicator, Gauge and Chart widget with `@@...@@` placeholders). It is Freeboard JSON: `panes[].widgets[]` with `type` `text_widget` / `indicator` / `gauge` / `Chart` and a short random `id` on every pane and widget. The Chart's time window is a preset string (`query_range`, e.g. `"1d"`).

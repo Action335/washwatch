@@ -1,0 +1,86 @@
+{
+	"version": 1,
+	"allow_edit": true,
+	"plugins": [],
+	"panes": [
+		{
+			"id": "eu6xjn",
+			"title": "@@PANE@@",
+			"width": 1,
+			"row": {
+				"5": 1
+			},
+			"col": {
+				"5": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"id": "cc42f1",
+					"type": "text_widget",
+					"settings": {
+						"title": "@@TITLE@@",
+						"size": "small",
+						"value": "@@VALUE@@",
+						"sparkline": false,
+						"animate": true,
+						"units": "@@UNITS@@"
+					}
+				},
+				{
+					"id": "vp33nb",
+					"type": "indicator",
+					"settings": {
+						"title": "@@TITLE@@",
+						"oncolor": "#FFC773",
+						"var_oncolor": null,
+						"offcolor": "#222222",
+						"var_offcolor": null,
+						"value": "@@VALUE@@",
+						"blinking": "@@BLINK@@",
+						"blinkfrequency": "1",
+						"on_text": "@@ON@@",
+						"off_text": "@@OFF@@",
+						"id": "vp33nb"
+					}
+				},
+				{
+					"id": "kb0mdp",
+					"type": "gauge",
+					"settings": {
+						"title": "@@TITLE@@",
+						"value": "@@VALUE@@",
+						"units": "@@UNITS@@",
+						"min_value": 111,
+						"max_value": 999,
+						"decimal": 2,
+						"human_friendly": true,
+						"rangeonpercent": false,
+						"id": "kb0mdp"
+					}
+				},
+				{
+					"id": "glbk49",
+					"type": "Chart",
+					"settings": {
+						"title": "@@TITLE@@",
+						"datasource": "@@SOURCE@@",
+						"filter": "@@FILTER@@",
+						"query_range": "1d",
+						"stricttimerange": false,
+						"mode": "normal",
+						"type": "line",
+						"yzero": false,
+						"marker": true,
+						"colors": "",
+						"totalyaxis": 1,
+						"height_block": 3,
+						"id": "glbk49"
+					}
+				}
+			]
+		}
+	],
+	"datasources": [],
+	"columns": 16
+}
