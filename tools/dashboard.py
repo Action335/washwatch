@@ -64,8 +64,12 @@ class Builder:
         return self.widget("text_widget", {"@@TITLE@@": title, "@@VALUE@@": value, "@@UNITS@@": units})
 
     def light(self, title, value, on, off, blink=False):
-        return self.widget("indicator", {"@@TITLE@@": title, "@@VALUE@@": value, "@@ON@@": on,
-                                         "@@OFF@@": off, "@@BLINK@@": "true" if blink else "false"})
+        # ON/OFF TEXT are JavaScript expressions in NETPIE, so they must be string literals:
+        # a bare word is evaluated (e.g. `closed` is the browser global window.closed = false).
+        def lit(s):
+            return json.dumps(s, ensure_ascii=False)
+        return self.widget("indicator", {"@@TITLE@@": title, "@@VALUE@@": value, "@@ON@@": lit(on),
+                                         "@@OFF@@": lit(off), "@@BLINK@@": "true" if blink else "false"})
 
     def gauge(self, title, value, units, lo, hi):
         return self.widget("gauge", {"@@TITLE@@": title, "@@VALUE@@": value, "@@UNITS@@": units},

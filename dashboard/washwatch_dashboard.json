@@ -29,8 +29,8 @@
             "value": "#[\"washwatch\"][\"status\"] == 1",
             "blinking": "false",
             "blinkfrequency": "1",
-            "on_text": "online",
-            "off_text": "offline",
+            "on_text": "\"online\"",
+            "off_text": "\"offline\"",
             "id": "ww0001"
           }
         },
@@ -82,8 +82,8 @@
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"pir\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"env\"][\"pir\"])",
             "blinking": "false",
             "blinkfrequency": "1",
-            "on_text": "yes",
-            "off_text": "no",
+            "on_text": "\"yes\"",
+            "off_text": "\"no\"",
             "id": "ww0005"
           }
         }
@@ -140,8 +140,8 @@
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"]) == \"done\"",
             "blinking": "true",
             "blinkfrequency": "1",
-            "on_text": "collect now",
-            "off_text": "–",
+            "on_text": "\"collect now\"",
+            "off_text": "\"–\"",
             "id": "ww0009"
           }
         },
@@ -157,8 +157,8 @@
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"lid_open\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"lid_open\"])",
             "blinking": "false",
             "blinkfrequency": "1",
-            "on_text": "open",
-            "off_text": "closed",
+            "on_text": "\"open\"",
+            "off_text": "\"closed\"",
             "id": "ww0010"
           }
         },
@@ -227,8 +227,8 @@
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"]) == \"done\"",
             "blinking": "true",
             "blinkfrequency": "1",
-            "on_text": "collect now",
-            "off_text": "–",
+            "on_text": "\"collect now\"",
+            "off_text": "\"–\"",
             "id": "ww0015"
           }
         },
@@ -244,8 +244,8 @@
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"lid_open\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"lid_open\"])",
             "blinking": "false",
             "blinkfrequency": "1",
-            "on_text": "open",
-            "off_text": "closed",
+            "on_text": "\"open\"",
+            "off_text": "\"closed\"",
             "id": "ww0016"
           }
         },

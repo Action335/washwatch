@@ -160,6 +160,20 @@ def test_done_light_blinks(dash):
     assert find(dash, "Washer 1", "Lid open")["settings"]["blinking"] == "false"
 
 
+def test_indicator_texts_are_string_literals(dash):
+    # ON/OFF TEXT are JavaScript expressions in NETPIE: a bare word is evaluated, and some are
+    # browser globals (`closed` showed "false" on the live dashboard, `open` is a function).
+    lights = [(p, w["settings"]) for p, w in widgets(dash) if w["type"] == "indicator"]
+    exprs = [s[k] for _, s in lights for k in ("on_text", "off_text")]
+    shown_texts = evaluate(exprs, FIXTURE)
+    expected = {("Washer 1", "Lid open"): ("open", "closed"), ("Gateway", "Gateway"): ("online", "offline")}
+    for i, (p, s) in enumerate(lights):
+        (ok_on, on), (ok_off, off) = shown_texts[2 * i], shown_texts[2 * i + 1]
+        assert ok_on and ok_off and isinstance(on, str) and isinstance(off, str), (p, s["title"], on, off)
+        if (p, s["title"]) in expected:
+            assert (on, off) == expected[(p, s["title"])]
+
+
 def test_charts_use_feed_datatags(dash):
     for n in (1, 2):
         w = find(dash, "Vibration", f"Washer {n} vibration (mg)")
