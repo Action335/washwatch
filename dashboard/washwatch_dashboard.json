@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "allow_edit": true,
+  "plugins": [],
+  "datasources": [],
+  "columns": 16,
+  "panes": [
+    {
+      "id": "ww0006",
+      "title": "Gateway",
+      "width": 1,
+      "row": {
+        "5": 1
+      },
+      "col": {
+        "5": 1
+      },
+      "col_width": 1,
+      "widgets": [
+        {
+          "id": "ww0001",
+          "type": "indicator",
+          "settings": {
+            "title": "Gateway",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "#[\"washwatch\"][\"status\"] == 1",
+            "blinking": "false",
+            "blinkfrequency": "1",
+            "on_text": "online",
+            "off_text": "offline",
+            "id": "ww0001"
+          }
+        },
+        {
+          "id": "ww0002",
+          "type": "text_widget",
+          "settings": {
+            "title": "Temperature",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"t\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"env\"][\"t\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": "°C"
+          }
+        },
+        {
+          "id": "ww0003",
+          "type": "text_widget",
+          "settings": {
+            "title": "Humidity",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"rh\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"env\"][\"rh\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": "%"
+          }
+        },
+        {
+          "id": "ww0004",
+          "type": "text_widget",
+          "settings": {
+            "title": "Rain sensor",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"rain\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"env\"][\"rain\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        },
+        {
+          "id": "ww0005",
+          "type": "indicator",
+          "settings": {
+            "title": "Someone at the washers",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"pir\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"env\"][\"pir\"])",
+            "blinking": "false",
+            "blinkfrequency": "1",
+            "on_text": "yes",
+            "off_text": "no",
+            "id": "ww0005"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ww0012",
+      "title": "Washer 1",
+      "width": 1,
+      "row": {
+        "5": 1
+      },
+      "col": {
+        "5": 2
+      },
+      "col_width": 1,
+      "widgets": [
+        {
+          "id": "ww0007",
+          "type": "text_widget",
+          "settings": {
+            "title": "State",
+            "size": "small",
+            "value": "(!((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"online\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"online\"])) ? \"offline\" : (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"]) == \"done\" ? \"done – waiting to be collected\" : (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"]) == \"running\" ? \"running · \" + ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"min_left\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"min_left\"]) + \" min left\" : \"free\"))",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        },
+        {
+          "id": "ww0008",
+          "type": "gauge",
+          "settings": {
+            "title": "Minutes left",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"min_left\"] == null) ? 0 : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"min_left\"])",
+            "units": "min",
+            "min_value": 0,
+            "max_value": 60,
+            "decimal": 0,
+            "human_friendly": true,
+            "rangeonpercent": false,
+            "id": "ww0008"
+          }
+        },
+        {
+          "id": "ww0009",
+          "type": "indicator",
+          "settings": {
+            "title": "Done – collect laundry",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"state\"]) == \"done\"",
+            "blinking": "true",
+            "blinkfrequency": "1",
+            "on_text": "collect now",
+            "off_text": "–",
+            "id": "ww0009"
+          }
+        },
+        {
+          "id": "ww0010",
+          "type": "indicator",
+          "settings": {
+            "title": "Lid open",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"lid_open\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"lid_open\"])",
+            "blinking": "false",
+            "blinkfrequency": "1",
+            "on_text": "open",
+            "off_text": "closed",
+            "id": "ww0010"
+          }
+        },
+        {
+          "id": "ww0011",
+          "type": "text_widget",
+          "settings": {
+            "title": "Link",
+            "size": "small",
+            "value": "(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"pdr\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"pdr\"]) == null) ? \"–\" : Math.round(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"pdr\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"pdr\"]) * 1000) / 10 + \" % · \" + ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"age_s\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"washers\"][\"1\"][\"age_s\"]) + \" s ago\"",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "ww0018",
+      "title": "Washer 2",
+      "width": 1,
+      "row": {
+        "5": 1
+      },
+      "col": {
+        "5": 3
+      },
+      "col_width": 1,
+      "widgets": [
+        {
+          "id": "ww0013",
+          "type": "text_widget",
+          "settings": {
+            "title": "State",
+            "size": "small",
+            "value": "(!((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"online\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"online\"])) ? \"offline\" : (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"]) == \"done\" ? \"done – waiting to be collected\" : (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"]) == \"running\" ? \"running · \" + ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"min_left\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"min_left\"]) + \" min left\" : \"free\"))",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        },
+        {
+          "id": "ww0014",
+          "type": "gauge",
+          "settings": {
+            "title": "Minutes left",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"min_left\"] == null) ? 0 : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"min_left\"])",
+            "units": "min",
+            "min_value": 0,
+            "max_value": 60,
+            "decimal": 0,
+            "human_friendly": true,
+            "rangeonpercent": false,
+            "id": "ww0014"
+          }
+        },
+        {
+          "id": "ww0015",
+          "type": "indicator",
+          "settings": {
+            "title": "Done – collect laundry",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"state\"]) == \"done\"",
+            "blinking": "true",
+            "blinkfrequency": "1",
+            "on_text": "collect now",
+            "off_text": "–",
+            "id": "ww0015"
+          }
+        },
+        {
+          "id": "ww0016",
+          "type": "indicator",
+          "settings": {
+            "title": "Lid open",
+            "oncolor": "#FFC773",
+            "var_oncolor": null,
+            "offcolor": "#222222",
+            "var_offcolor": null,
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"lid_open\"] == null) ? false : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"lid_open\"])",
+            "blinking": "false",
+            "blinkfrequency": "1",
+            "on_text": "open",
+            "off_text": "closed",
+            "id": "ww0016"
+          }
+        },
+        {
+          "id": "ww0017",
+          "type": "text_widget",
+          "settings": {
+            "title": "Link",
+            "size": "small",
+            "value": "(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"pdr\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"pdr\"]) == null) ? \"–\" : Math.round(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"pdr\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"pdr\"]) * 1000) / 10 + \" % · \" + ((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"] == null || #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"age_s\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"washers\"][\"2\"][\"age_s\"]) + \" s ago\"",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "ww0022",
+      "title": "Training log",
+      "width": 1,
+      "row": {
+        "5": 1
+      },
+      "col": {
+        "5": 4
+      },
+      "col_width": 1,
+      "widgets": [
+        {
+          "id": "ww0019",
+          "type": "text_widget",
+          "settings": {
+            "title": "Waiting to upload",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"][\"buffered\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"log\"][\"buffered\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": "records"
+          }
+        },
+        {
+          "id": "ww0020",
+          "type": "text_widget",
+          "settings": {
+            "title": "Lost (buffer full)",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"][\"dropped\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"log\"][\"dropped\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": "records"
+          }
+        },
+        {
+          "id": "ww0021",
+          "type": "text_widget",
+          "settings": {
+            "title": "Refused by NETPIE",
+            "size": "small",
+            "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"] == null || #[\"washwatch\"][\"shadow\"][\"log\"][\"rejected\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"log\"][\"rejected\"])",
+            "sparkline": false,
+            "animate": true,
+            "units": "records"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ww0025",
+      "title": "Vibration",
+      "width": 1,
+      "row": {
+        "5": 1
+      },
+      "col": {
+        "5": 5
+      },
+      "col_width": 1,
+      "widgets": [
+        {
+          "id": "ww0023",
+          "type": "Chart",
+          "settings": {
+            "title": "Washer 1 vibration (mg)",
+            "datasource": "#[\"washwatch\"][\"feed\"]",
+            "filter": "w1_std,w1_p2p",
+            "query_range": "1d",
+            "stricttimerange": false,
+            "mode": "normal",
+            "type": "line",
+            "yzero": false,
+            "marker": true,
+            "colors": "",
+            "totalyaxis": 1,
+            "height_block": 3,
+            "id": "ww0023"
+          }
+        },
+        {
+          "id": "ww0024",
+          "type": "Chart",
+          "settings": {
+            "title": "Washer 2 vibration (mg)",
+            "datasource": "#[\"washwatch\"][\"feed\"]",
+            "filter": "w2_std,w2_p2p",
+            "query_range": "1d",
+            "stricttimerange": false,
+            "mode": "normal",
+            "type": "line",
+            "yzero": false,
+            "marker": true,
+            "colors": "",
+            "totalyaxis": 1,
+            "height_block": 3,
+            "id": "ww0024"
+          }
+        }
+      ]
+    }
+  ]
+}
