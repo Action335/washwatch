@@ -39,7 +39,7 @@ typedef struct __attribute__((packed)) {
 static_assert(sizeof(ack_msg_t) == 6, "ack_msg_t must stay 6 bytes");
 
 constexpr uint32_t SEND_PERIOD_MS = 2000;  // one window per message
-constexpr uint32_t PUBLISH_PERIOD_MS = 10000;
+constexpr uint32_t PUBLISH_PERIOD_MS = 30000;  // live shadow; 30 s keeps NETPIE shadow writes in the free quota
 constexpr uint32_t NODE_OFFLINE_MS = 30000;
 
 constexpr uint8_t MAX_NODES = 8;

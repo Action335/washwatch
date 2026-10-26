@@ -32,8 +32,8 @@ static void put_float(JsonObject o, const char* key, float v) {
 }
 
 size_t build_shadow_update(const NodeTable& t, const WasherView* washers, size_t n_washers,
-                           const GatewaySensors& env, const char* gw_id, uint32_t ts, uint32_t now_ms,
-                           char* out, size_t out_len) {
+                           const GatewaySensors& env, const LogStats& log, const char* gw_id, uint32_t ts,
+                           uint32_t now_ms, char* out, size_t out_len) {
   JsonDocument doc;
   JsonObject data = doc["data"].to<JsonObject>();
   data["gw"] = gw_id;
@@ -44,6 +44,11 @@ size_t build_shadow_update(const NodeTable& t, const WasherView* washers, size_t
   put_float(e, "rh", env.rh);
   e["rain"] = env.rain_raw;
   e["pir"] = env.pir;
+
+  JsonObject lg = data["log"].to<JsonObject>();
+  lg["buffered"] = log.buffered;
+  lg["dropped"] = log.dropped;
+  lg["rejected"] = log.rejected;
 
   JsonObject ws = data["washers"].to<JsonObject>();
   for (size_t i = 0; i < n_washers; i++) {

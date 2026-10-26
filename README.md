@@ -46,3 +46,12 @@ Still to fill in after running `python tools/netpie_probe.py` with the device cr
 - Success ack JSON: TODO
 - 101-record batch reply (expect errcode 429): TODO
 - Shadow writes counted for one 2-record batch: TODO
+
+## Training data (for the phase classifier)
+The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. In the NETPIE portal, create those 10 datatags (washers 1 and 2) with **TTL 14 days**: that keeps storage inside the free 1,000,000 point-month.
+
+To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w2_*` datatags and a date range → CSV. **Export at least once a week**, because points older than 14 days are deleted.
+
+Records wait in a RAM buffer (3,000 records, about 50 min of both washers running) while the cloud is unreachable and upload oldest-first when it is back (E4). The dashboard's `log` object shows `buffered`, `dropped` (buffer overflowed) and `rejected` (NETPIE refused a batch 3 times). Limitation: the buffer is in RAM, so records still waiting are lost if the gateway reboots during an outage.
+
+Simulation build: `pio run -d gateway -e gateway_sim` runs two simulated washer nodes on Wokwi's open Wi-Fi against the real NETPIE device in `secrets.h`. Add `-DSIM_OUTAGE` to its `build_flags` to cut the cloud off from 20 s to 50 s of uptime.

@@ -8,6 +8,8 @@ Washer g_washers[WASHER_COUNT] = {
 };
 
 NodeTable g_nodes;
+static LogRecord log_storage[LOG_CAPACITY];
+RecordBuffer g_log(log_storage, LOG_CAPACITY);
 GatewaySensors g_env = {NAN, NAN, 0, false};
 SemaphoreHandle_t g_state_mtx;
 QueueHandle_t q_notices;

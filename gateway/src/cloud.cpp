@@ -1,17 +1,25 @@
 #include "cloud.h"
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <time.h>
 
+#include "batch_json.h"
+#include "batch_uploader.h"
 #include "secrets.h"
 #include "state.h"
 #include "telemetry_json.h"
+#include "wifi_config.h"
 
 constexpr const char* MQTT_HOST = "mqtt.netpie.io";
 constexpr uint16_t MQTT_PORT = 1883;  // TLS (8883) comes with E5 in a later plan
 constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
+// Batch topic per docs.netpie.io/mqtt-api.html; confirm with tools/netpie_probe.py (README "NETPIE facts").
+constexpr const char* BATCH_TOPIC = "@shadow/batch/update";
+constexpr const char* BATCH_RESPONSE_TOPIC = "@private/shadow/batch/update/response";
+constexpr size_t BATCH_MAX_BYTES = 6144;  // LOG_BATCH_MAX records fit (test_fifty_records_fit_in_6k)
 constexpr size_t PAYLOAD_MAX = 1024;  // two washers + env is about 500 bytes at most
 constexpr uint32_t RECONNECT_MS = 5000;
 constexpr uint32_t WIFI_FIRST_RETRY_MS = 2000;  // most drops are a short beacon loss
@@ -23,6 +31,9 @@ constexpr uint32_t CLOUD_TASK_STACK = 8192;
 static WiFiClient net;
 static PubSubClient mqtt(net);
 static char payload[PAYLOAD_MAX];
+static char batch_buf[BATCH_MAX_BYTES];
+static LogRecord batch_recs[LOG_BATCH_MAX];
+static BatchUploader uploader;  // used only by cloud_task (the MQTT callback runs inside mqtt.loop())
 
 static uint8_t wifi_channel = 0;
 static uint32_t wifi_attempts = 0;  // reconnect attempts since the link was last up
@@ -41,16 +52,55 @@ static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
   wifi_attempts++;
   Serial.printf("wifi: reconnecting on channel %u\n", wifi_channel);
   WiFi.disconnect();
-  WiFi.begin(WIFI_SSID, WIFI_PASS, wifi_channel);
+  WiFi.begin(WIFI_NET_SSID, WIFI_NET_PASS, wifi_channel);
 }
 
 static bool ensure_connected(uint32_t now, uint32_t& last_try) {
+#ifdef SIM_OUTAGE
+  // gateway_sim test: the cloud is unreachable from 20 s to 50 s of uptime.
+  if (now >= 20000 && now < 50000) {
+    if (mqtt.connected()) {
+      mqtt.disconnect();
+      Serial.println("mqtt: simulated outage starts");
+    }
+    return false;
+  }
+#endif
   if (mqtt.connected()) return true;
   if (WiFi.status() != WL_CONNECTED || now - last_try < RECONNECT_MS) return false;
   last_try = now;
-  bool ok = mqtt.connect(NETPIE_CLIENT_ID, NETPIE_TOKEN, NETPIE_SECRET);
+  bool ok = mqtt.connect(NETPIE_CLIENT_ID, NETPIE_TOKEN, NETPIE_SECRET) && mqtt.subscribe(BATCH_RESPONSE_TOPIC);
   Serial.printf("mqtt: connect %s (state %d)\n", ok ? "ok" : "failed", mqtt.state());
   return ok;
+}
+
+// NETPIE's reply to a batch: {"ackid":N, ...} with "errcode" only on failure.
+static void on_mqtt_message(char* topic, uint8_t* data, unsigned int len) {
+  if (strcmp(topic, BATCH_RESPONSE_TOPIC) != 0) return;
+  JsonDocument doc;
+  if (deserializeJson(doc, data, len) != DeserializationError::Ok) return;
+  uint32_t ackid = doc["ackid"] | 0u;
+  int errcode = doc["errcode"] | 0;
+  size_t done = uploader.on_response(ackid, errcode);
+  if (done > 0) {
+    xSemaphoreTake(g_state_mtx, portMAX_DELAY);
+    g_log.pop(done);
+    xSemaphoreGive(g_state_mtx);
+  }
+  Serial.printf("batch: ack %lu errcode %d -> %u records done\n", (unsigned long)ackid, errcode, (unsigned)done);
+}
+
+// Sends the oldest buffered records when the uploader says so (E4 store-and-forward).
+static void upload_log(uint32_t now) {
+  xSemaphoreTake(g_state_mtx, portMAX_DELAY);
+  size_t n = uploader.poll(g_log.size(), now);
+  if (n > 0) n = g_log.peek(batch_recs, n);
+  xSemaphoreGive(g_state_mtx);
+  if (n == 0) return;
+  size_t len = build_batch_update(batch_recs, n, now, uploader.ackid(), batch_buf, sizeof(batch_buf));
+  bool ok = len > 0 && mqtt.publish(BATCH_TOPIC, (const uint8_t*)batch_buf, len);
+  Serial.printf("batch: send %u records (ackid %lu, %u bytes) %s\n", (unsigned)n, (unsigned long)uploader.ackid(),
+                (unsigned)len, ok ? "ok" : "failed");
 }
 
 static void publish_shadow() {
@@ -59,7 +109,8 @@ static void publish_shadow() {
   for (size_t i = 0; i < WASHER_COUNT; i++) views[i] = {g_washers[i].node_id, &g_washers[i].cycle};
   // Read the time under the lock, so no node can be stored "after" it.
   uint32_t now = millis();
-  size_t n = build_shadow_update(g_nodes, views, WASHER_COUNT, g_env, GW_ID, (uint32_t)time(nullptr), now,
+  LogStats log = {(uint32_t)g_log.size(), g_log.dropped(), uploader.rejected()};
+  size_t n = build_shadow_update(g_nodes, views, WASHER_COUNT, g_env, log, GW_ID, (uint32_t)time(nullptr), now,
                                  payload, sizeof(payload));
   xSemaphoreGive(g_state_mtx);
   if (n == 0) {
@@ -72,7 +123,7 @@ static void publish_shadow() {
 
 static void cloud_task(void*) {
   uint32_t last_try = 0, last_pub = 0, last_wifi_try = millis();
-  bool first_try = true;
+  bool first_try = true, was_connected = false;
   for (;;) {
     uint32_t now = millis();
     if (first_try) {
@@ -80,9 +131,12 @@ static void cloud_task(void*) {
       first_try = false;
     }
     ensure_wifi(now, last_wifi_try);
-    if (ensure_connected(now, last_try)) {
+    bool connected = ensure_connected(now, last_try);
+    if (was_connected && !connected) uploader.on_disconnect();  // its ack can't arrive now: resend later
+    was_connected = connected;
+    if (connected) {
       mqtt.loop();
-      // Not connected = skip; buffering offline data (E4) comes in a later plan.
+      upload_log(now);  // while offline, records wait in g_log (E4)
       if (now - last_pub >= PUBLISH_PERIOD_MS) {
         last_pub = now;
         publish_shadow();
@@ -95,6 +149,7 @@ static void cloud_task(void*) {
 void cloud_start() {
   configTime(7 * 3600, 0, "pool.ntp.org");
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
-  mqtt.setBufferSize(PAYLOAD_MAX + 64);  // + MQTT header and topic
+  mqtt.setCallback(on_mqtt_message);
+  mqtt.setBufferSize(BATCH_MAX_BYTES + 64);  // the batch is the largest message; + MQTT header and topic
   xTaskCreate(cloud_task, "cloud", CLOUD_TASK_STACK, nullptr, CLOUD_TASK_PRIO, nullptr);
 }

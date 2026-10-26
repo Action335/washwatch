@@ -22,11 +22,12 @@ static node_msg_t washer(uint8_t id, uint32_t seq, uint8_t phase, bool lid_open)
 }
 
 static const GatewaySensors ENV = {29.5f, 71.0f, 1200, true};
+static const LogStats LOG = {12, 3, 0};
 static char out[2048];
 
 static JsonDocument build(const NodeTable& t, const WasherView* w, size_t n_w, const GatewaySensors& env,
                           uint32_t now_ms) {
-  size_t n = build_shadow_update(t, w, n_w, env, "washwatch-01", 1761500000, now_ms, out, sizeof(out));
+  size_t n = build_shadow_update(t, w, n_w, env, LOG, "washwatch-01", 1761500000, now_ms, out, sizeof(out));
   TEST_ASSERT_TRUE(n > 0);
   JsonDocument doc;
   TEST_ASSERT_TRUE(deserializeJson(doc, out, n) == DeserializationError::Ok);
@@ -45,6 +46,17 @@ void test_gateway_fields() {
   TEST_ASSERT_EQUAL_FLOAT(71.0f, d["env"]["rh"].as<float>());
   TEST_ASSERT_EQUAL(1200, d["env"]["rain"].as<int>());
   TEST_ASSERT_TRUE(d["env"]["pir"].as<bool>());
+}
+
+void test_log_stats() {
+  NodeTable t;
+  WasherCycle c1(45);
+  WasherView w[] = {{1, &c1}};
+  JsonDocument doc = build(t, w, 1, ENV, 0);
+  JsonObject log = doc["data"]["log"];
+  TEST_ASSERT_EQUAL(12, log["buffered"].as<int>());
+  TEST_ASSERT_EQUAL(3, log["dropped"].as<int>());
+  TEST_ASSERT_EQUAL(0, log["rejected"].as<int>());
 }
 
 void test_failed_dht_is_null() {
@@ -107,12 +119,13 @@ void test_too_small_buffer_returns_zero() {
   WasherCycle c1(45);
   WasherView w[] = {{1, &c1}};
   char tiny[16];
-  TEST_ASSERT_EQUAL(0, build_shadow_update(t, w, 1, ENV, "washwatch-01", 0, 0, tiny, sizeof(tiny)));
+  TEST_ASSERT_EQUAL(0, build_shadow_update(t, w, 1, ENV, LOG, "washwatch-01", 0, 0, tiny, sizeof(tiny)));
 }
 
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_gateway_fields);
+  RUN_TEST(test_log_stats);
   RUN_TEST(test_failed_dht_is_null);
   RUN_TEST(test_running_washer_fields);
   RUN_TEST(test_unheard_washer_shows_state_only);
