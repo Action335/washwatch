@@ -76,3 +76,5 @@ Two NETPIE behaviours the generator works around (both seen live on 26–27 Oct 
 - Quirk in the portal: picking **Read Shadow** in a data source's privileges also silently adds **Write Shadow**. Check the privileges column after saving and edit it out.
 
 Check the dashboard without hardware: `uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py` (device credentials in env vars) publishes the sample shadow every 5 s: washer 1 counts down, after 60 s it is done (blinking light) and washer 2 goes offline.
+
+![WashWatch dashboard during a fake_shadow.py run, 27 Oct 2026](docs/img/dashboard-live.png)
