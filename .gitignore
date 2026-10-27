@@ -3,3 +3,4 @@ secrets.h
 .vscode/
 .superpowers/
 __pycache__/
+platformio-device-monitor-*.log

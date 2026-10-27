@@ -31,6 +31,7 @@ pio test -d proto_tests -e native                 # all PC unit tests
 pio test -d proto_tests -e native -f test_washer_cycle  # one suite
 pio run -d node -e washer1 -t upload -t monitor
 pio run -d gateway -t upload -t monitor
+pio run -d node -e logger -t upload -t monitor    # raw vibration logger (see "Recording a cycle")
 ```
 
 ## NETPIE facts
@@ -61,6 +62,15 @@ To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w
 Records wait in a RAM buffer (3,000 records, about 50 min of both washers running) while the cloud is unreachable and upload oldest-first when it is back (E4). The dashboard's `log` object shows `buffered`, `dropped` (buffer overflowed) and `rejected` (NETPIE refused a batch 3 times). Limitation: the buffer is in RAM, so records still waiting are lost if the gateway reboots during an outage.
 
 Simulation build: `pio run -d gateway -e gateway_sim` runs two simulated washer nodes on Wokwi's open Wi-Fi against the real NETPIE device in `secrets.h`. Add `-DSIM_OUTAGE` to its `build_flags` to cut the cloud off from 20 s to 50 s of uptime.
+
+## Recording a cycle
+The `logger` env (`node/logger/main.cpp`) streams every 100 Hz MPU6050 sample over USB as CSV: `seq,ms,ax,ay,az,lid` (raw counts, 8192 per g; `lid` 1 = open, and reads 1 when no reed switch is wired). It is for calibrating `STD_WASH_MG`, `STD_SPIN_MG`, `DONE_QUIET_MS`, `START_WINDOWS` and choosing richer features, so mount the board exactly as the node will be.
+
+1. Wire the MPU6050 as on the node (SDA 21, SCL 22, AD0 to GND), reed switch on GPIO 25 to GND if you have it.
+2. Mount it on the washer, plug it into a laptop and run `pio run -d node -e logger -t upload -t monitor`. The `log2file` filter saves everything to `node/platformio-device-monitor-*.log` (about 2.5 kB/s, roughly 9 MB per hour).
+3. Start the monitor before the washer, run one full cycle, stop with Ctrl+C a few minutes after it ends. Note the program and load.
+
+Gaps in `seq` mean dropped lines; an empty `ax,ay,az` means a failed read.
 
 ## Dashboard (NETPIE)
 Portal → project WashWatch → **Console → Dashboard**. A dashboard reads the device through a **data source** added in its **Settings** tab ("Add source": Type Device, Device `washwatch-gateway`, **Alias `washwatch`**, privileges **Read Shadow + Read Feed** only). The alias is not part of an exported or imported file, so add it to any new dashboard before importing.
