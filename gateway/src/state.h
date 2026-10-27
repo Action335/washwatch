@@ -28,10 +28,11 @@ extern RecordBuffer g_log;
 extern GatewaySensors g_env;
 extern SemaphoreHandle_t g_state_mtx;
 
-// Cycle events for notify_task.
+// Alerts for notify_task: a washer's cycle event, or rain at the gateway (node_id and event unused).
 struct Notice {
   uint8_t node_id;
   CycleEvent event;
+  bool rain;
 };
 extern QueueHandle_t q_notices;
 

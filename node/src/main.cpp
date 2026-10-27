@@ -9,6 +9,7 @@
 #include "features.h"
 #include "imu.h"
 #include "link.h"
+#include "task_report.h"
 #include "ww_msg.h"
 
 #ifndef NODE_ID
@@ -114,5 +115,6 @@ void setup() {
   xTaskCreate(link_task, "link", TASK_STACK, nullptr, LINK_TASK_PRIO, nullptr);
 }
 
-// All work happens in sample_task and link_task.
-void loop() { vTaskDelete(nullptr); }
+// All work happens in sample_task and link_task; loop only prints their stack use (E1).
+static const char* const TASKS[] = {"sample", "link"};
+void loop() { task_report_loop(TASKS, sizeof(TASKS) / sizeof(TASKS[0])); }

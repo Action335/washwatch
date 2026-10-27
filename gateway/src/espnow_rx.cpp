@@ -65,7 +65,7 @@ void handle_node_msg(const uint8_t* mac, const node_msg_t& m) {
   // ACK duplicates too: a duplicate means the node missed our first ACK.
   if (mac != nullptr && r != Ingest::Rejected) send_ack(mac, m);
   if (ev != CycleEvent::None) {
-    Notice n = {m.node_id, ev};
+    Notice n = {m.node_id, ev, false};
     xQueueSend(q_notices, &n, 0);
   }
   counts[(int)r]++;
