@@ -14,7 +14,7 @@
 
 ## How it works
 - **Node** (`node/src/main.cpp`): `sample_task` reads the MPU6050 at 100 Hz; every 2 s `link_task` sends mean/std/peak-to-peak of |a|, a phase (idle/wash/spin) and the lid state. The reed switch ISR sends a lid change straight away.
-- **Gateway** (`gateway/src/`): `espnow_rx` (prio 5) ACKs and feeds `WasherCycle`; `control` (4) drives the servos and reads PIR/DHT22/rain; `cloud` (2) publishes the live shadow every 30 s and uploads the training log; `notify` (1) posts Discord alerts on done, a 15-minute reminder, and collected.
+- **Gateway** (`gateway/src/`): `espnow_rx` (prio 5) ACKs and feeds `WasherCycle`; `control` (4) drives the servos and reads PIR/DHT22/rain; `cloud` (2) publishes the live shadow every 30 s and uploads the training log; `notify` (1) posts Discord alerts on done, a 15-minute reminder, and collected, through a channel webhook (`DISCORD_WEBHOOK_URL` in `secrets.h`). The webhook and message texts were checked from a PC on 27 Oct 2026 ([screenshot](docs/img/discord-alerts.png)); the ESP32's own HTTPS post still needs a live run.
 - **Not yet done:** the phase is a threshold rule (`STD_WASH_MG`, `STD_SPIN_MG` in `features.h`) and minutes left is a nominal cycle length (`state.cpp`). Both are uncalibrated until real cycles are recorded; the trained classifier (E7) replaces the rule.
 - **Cloud security (E5):** MQTT runs over TLS on port 1884 and the gateway only sends its NETPIE credentials after the server certificate matches one of the two pinned fingerprints (`gateway/src/certs.h`, see "NETPIE facts"). Discord webhooks are verified against Google Trust Services roots (GTS Root R1/R4, valid until 2036). No secrets are in the repository.
 
