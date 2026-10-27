@@ -70,12 +70,12 @@ Widgets read the shadow as `#["washwatch"]["shadow"]["washers"]["1"]["state"]`, 
 
 The full dashboard is generated: `python tools/dashboard.py` writes `dashboard/washwatch_dashboard.json`, and `uv run --no-project --with pytest python -I -m pytest tools/tests -q` checks it (every expression is run in Node against the firmware's sample shadow, an empty shadow and an offline washer). To install it: open the dashboard (the live one is **WashWatch**) → **⋯ → Import** → choose that file → **Save**.
 
-Two NETPIE behaviours the generator works around (both seen live on 26–27 Oct 2026):
+NETPIE behaviours the generator works around (all seen live on 26–27 Oct 2026):
 - **Indicator ON/OFF TEXT are JavaScript expressions**, so the generator writes them as string literals (a bare `closed` showed `false`: it is the browser global `window.closed`).
 - **The device `status` is only read when the dashboard loads** (it stayed 0 after the device connected, and was 1 after a reload). A load-time `status` is stale either way, so the dashboard doesn't use it: the Gateway light is "online" while the shadow's `ts` is less than 90 s old, and a washer counts as online only if its own `online` is true **and** the gateway is online (otherwise its gauge shows 0 and its done light is off).
 - **Expressions are only re-evaluated when data arrives** (27 Oct: after the publisher stopped, the Gateway light stayed "online" until a reload). NETPIE's data sources can only be devices, so there is no timer to force a refresh. The light and the washer states are therefore correct as of the last update or a reload; the Gateway panel's **Last update** time is what tells you on an open page that the gateway has gone quiet.
 - Quirk in the portal: picking **Read Shadow** in a data source's privileges also silently adds **Write Shadow**. Check the privileges column after saving and edit it out.
 
-Check the dashboard without hardware: `uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py` (device credentials in env vars) publishes the sample shadow every 5 s: washer 1 counts down, after 60 s it is done (blinking light) and washer 2 goes offline.
+Check the dashboard without hardware: `uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py` (device credentials in env vars) publishes the sample shadow every 5 s: washer 1 counts down, after 60 s it is done (blinking light) and washer 2 goes offline. It writes the real device shadow, so don't run it while the real gateway is publishing.
 
 ![WashWatch dashboard during a fake_shadow.py run, 27 Oct 2026](docs/img/dashboard-live.png)

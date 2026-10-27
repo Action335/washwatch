@@ -149,6 +149,31 @@ def test_state_text_for_each_state(dash):
     assert ok and val == "running · 12 min left"
 
 
+def test_state_text_unknown_state_is_a_dash(dash):
+    # An online washer whose state is missing or unexpected must not look "free".
+    expr = find(dash, "Washer 1", "State")["settings"]["value"]
+    s = fresh(FIXTURE)
+    s["washers"]["1"]["online"] = True
+    del s["washers"]["1"]["state"]
+    t = fresh(FIXTURE)
+    t["washers"]["1"].update(online=True, state="spinning")
+    [(ok1, a)], [(ok2, b)] = evaluate([expr], s), evaluate([expr], t)
+    assert (ok1, ok2, a, b) == (True, True, "–", "–")
+
+
+def test_imu_fault_light(dash):
+    # With a dead IMU, running/done detection is wrong while everything else looks healthy.
+    expr = find(dash, "Washer 1", "Motion sensor fault")["settings"]["value"]
+    assert find(dash, "Washer 2", "Motion sensor fault")
+    got = []
+    for online, fault in ((True, True), (True, False), (False, True)):
+        s = fresh(FIXTURE)
+        s["washers"]["1"].update(online=online, imu_fault=fault)
+        got.append(evaluate([expr], s)[0])
+    got.append(evaluate([expr], {})[0])
+    assert got == [[True, True], [True, False], [True, False], [True, False]]
+
+
 def test_gauge_falls_back_to_a_number(dash):
     w = find(dash, "Washer 2", "Minutes left")
     assert w["type"] == "gauge"

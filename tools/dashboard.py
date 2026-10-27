@@ -116,7 +116,8 @@ def washer_state(n: int) -> str:
     state = guarded(w + ("state",), "null")
     mins = shown(w + ("min_left",))
     return (f'(!{washer_online(n)}) ? "offline" : ({state} == "done" ? "done {DASH} waiting to be collected" : '
-            f'({state} == "running" ? "running · " + {mins} + " min left" : "free"))')
+            f'({state} == "running" ? "running · " + {mins} + " min left" : '
+            f'({state} == "idle" ? "free" : "{DASH}")))')
 
 
 def washer_link(n: int) -> str:
@@ -145,6 +146,9 @@ def build(template: dict) -> dict:
                     f'({washer_online(n)} && {guarded(w + ("state",), "null")} == "done")',
                     "collect now", DASH, blink=True),
             b.light("Lid open", guarded(w + ("lid_open",), "false"), "open", "closed"),
+            # With a dead IMU the running/done detection is wrong while everything else looks fine.
+            b.light("Motion sensor fault", f'({washer_online(n)} && {guarded(w + ("imu_fault",), "false")})',
+                    "fault", "ok"),
             b.text("Link", washer_link(n)),
         ]))
     panes.append(b.pane("Training log", 4, [

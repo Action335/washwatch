@@ -4,6 +4,9 @@ Every 5 s it publishes dashboard/shadow_sample.json with washer 1 running and it
 counting down from 40; after 60 s washer 1 is done (the blinking light) and washer 2 goes offline.
 Ctrl+C stops it.
 
+It writes the real device shadow: don't run it while the real gateway is publishing (they
+overwrite each other), and the shadow stays in the fake state until the gateway next publishes.
+
     set NETPIE_CLIENT_ID=...  &  set NETPIE_TOKEN=...  &  set NETPIE_SECRET=...
     uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py
 """
@@ -12,10 +15,6 @@ import json
 import os
 import time
 from pathlib import Path
-
-import paho.mqtt.client as mqtt
-
-from netpie_probe import BROKER, TLS_PORT, pinned_context
 
 FIXTURE = Path(__file__).resolve().parents[1] / "dashboard" / "shadow_sample.json"
 PERIOD_S = 5
@@ -36,10 +35,25 @@ def shadow_at(base: dict, elapsed_s: float) -> dict:
     return d
 
 
+CRED_VARS = ("NETPIE_CLIENT_ID", "NETPIE_TOKEN", "NETPIE_SECRET")
+
+
+def credentials(env) -> tuple[str, str, str]:
+    missing = [v for v in CRED_VARS if not env.get(v)]
+    if missing:
+        raise SystemExit(f"set the device credentials first: {', '.join(missing)} not set")
+    return tuple(env[v] for v in CRED_VARS)
+
+
 def main() -> None:
+    # Imported here (both need paho), so the tests can import this file without it.
+    import paho.mqtt.client as mqtt
+    from netpie_probe import BROKER, TLS_PORT, pinned_context
+
+    client_id, token, secret = credentials(os.environ)
     base = json.loads(FIXTURE.read_text(encoding="utf-8"))["data"]
-    client = mqtt.Client(client_id=os.environ["NETPIE_CLIENT_ID"])
-    client.username_pw_set(os.environ["NETPIE_TOKEN"], os.environ["NETPIE_SECRET"])
+    client = mqtt.Client(client_id=client_id)
+    client.username_pw_set(token, secret)
     client.tls_set_context(pinned_context())  # credentials only go to the pinned NETPIE broker
     client.connect(BROKER, TLS_PORT)
     client.loop_start()
