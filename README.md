@@ -70,7 +70,7 @@ The `logger` env (`node/logger/main.cpp`) streams every 100 Hz MPU6050 sample ov
 2. Mount it on the washer, plug it into a laptop and run `pio run -d node -e logger -t upload -t monitor`. The `log2file` filter saves everything to `node/platformio-device-monitor-*.log` (about 2.5 kB/s, roughly 9 MB per hour).
 3. Start the monitor before the washer, run one full cycle, stop with Ctrl+C a few minutes after it ends. Note the program and load.
 
-Gaps in `seq` mean dropped lines; an empty `ax,ay,az` means a failed read.
+Gaps in `seq` mean dropped lines; an empty `ax,ay,az` means a failed read. Full step-by-step (phone or logger): [`docs/record-a-cycle.md`](docs/record-a-cycle.md).
 
 ## Dashboard (NETPIE)
 Portal → project WashWatch → **Console → Dashboard**. A dashboard reads the device through a **data source** added in its **Settings** tab ("Add source": Type Device, Device `washwatch-gateway`, **Alias `washwatch`**, privileges **Read Shadow + Read Feed** only). The alias is not part of an exported or imported file, so add it to any new dashboard before importing.
