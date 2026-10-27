@@ -23,13 +23,23 @@ bool imu_begin() {
          && write_reg(REG_ACCEL_CONFIG, 0x08);  // +-4 g
 }
 
-bool imu_read_magnitude(float& mag_g) {
+bool imu_read_raw(int16_t a[3]) {
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(REG_ACCEL_XOUT_H);
   if (Wire.endTransmission(false) != 0) return false;
   if (Wire.requestFrom(MPU_ADDR, (uint8_t)6) != 6) return false;
+  for (int i = 0; i < 3; i++) {
+    uint8_t hi = Wire.read();  // separate statements: evaluation order inside one expression is unspecified
+    a[i] = (int16_t)((hi << 8) | Wire.read());
+  }
+  return true;
+}
+
+bool imu_read_magnitude(float& mag_g) {
+  int16_t raw[3];
+  if (!imu_read_raw(raw)) return false;
   float a[3];
-  for (int i = 0; i < 3; i++) a[i] = (int16_t)((Wire.read() << 8) | Wire.read()) / LSB_PER_G;
+  for (int i = 0; i < 3; i++) a[i] = raw[i] / LSB_PER_G;
   mag_g = sqrtf(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
   return true;
 }
