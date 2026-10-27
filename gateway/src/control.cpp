@@ -7,7 +7,7 @@
 #include "rain_watch.h"
 #include "state.h"
 
-// Pins as tested in Wokwi (wokwi/gateway/diagram.json).
+// Pins as tested in Wokwi.
 constexpr int PIN_PIR = 27;
 constexpr int PIN_DHT = 4;
 constexpr int PIN_RAIN = 34;  // ADC1 only: ADC2 pins stop working when Wi-Fi is on

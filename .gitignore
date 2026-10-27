@@ -4,3 +4,5 @@ secrets.h
 .superpowers/
 __pycache__/
 platformio-device-monitor-*.log
+docs/
+wokwi/

@@ -8,13 +8,12 @@
 | `proto_tests/` | Unit tests for `ww_proto`, run on the PC |
 | `node/` | Washer node firmware (ESP32): envs `washer1`, `washer2` |
 | `gateway/` | Gateway firmware (ESP32) |
-| `wokwi/` | Wokwi wiring and end-to-end test projects (see `wokwi/README.md`) |
 | `dashboard/` | NETPIE schema |
 | `tools/` | Helper scripts |
 
 ## How it works
 - **Node** (`node/src/main.cpp`): `sample_task` reads the MPU6050 at 100 Hz; every 2 s `link_task` sends mean/std/peak-to-peak of |a|, a phase (idle/wash/spin) and the lid state. The reed switch ISR sends a lid change straight away.
-- **Gateway** (`gateway/src/`): `espnow_rx` (prio 5) ACKs and feeds `WasherCycle`; `control` (4) drives the servos and reads PIR/DHT22/rain; `cloud` (2) publishes the live shadow every 30 s and uploads the training log; `notify` (1) posts Discord alerts on done, a 15-minute reminder, collected, and rain ("bring in laundry drying outside": the rain sensor wet for 30 s, once per rain until it has been dry for 10 min; `RAIN_WET_RAW`/`RAIN_DRY_RAW` in `lib/ww_proto/src/rain_watch.h` are uncalibrated), through a channel webhook (`DISCORD_WEBHOOK_URL` in `secrets.h`). The webhook and message texts were checked from a PC on 27 Oct 2026 ([screenshot](docs/img/discord-alerts.png)); the ESP32's own HTTPS post still needs a live run.
+- **Gateway** (`gateway/src/`): `espnow_rx` (prio 5) ACKs and feeds `WasherCycle`; `control` (4) drives the servos and reads PIR/DHT22/rain; `cloud` (2) publishes the live shadow every 30 s and uploads the training log; `notify` (1) posts Discord alerts on done, a 15-minute reminder, collected, and rain ("bring in laundry drying outside": the rain sensor wet for 30 s, once per rain until it has been dry for 10 min; `RAIN_WET_RAW`/`RAIN_DRY_RAW` in `lib/ww_proto/src/rain_watch.h` are uncalibrated), through a channel webhook (`DISCORD_WEBHOOK_URL` in `secrets.h`). The webhook and message texts were checked from a PC on 27 Oct 2026; the ESP32's own HTTPS post still needs a live run.
 - **Task report (E1):** gateway and node print each task's priority and free stack, plus free heap, on the serial monitor 10 s after boot and every 5 min (`lib/ww_rtos/src/task_report.h`, run from `loop()`).
 - **Not yet done:** the phase is a threshold rule (`STD_WASH_MG`, `STD_SPIN_MG` in `features.h`) and minutes left is a nominal cycle length (`state.cpp`). Both are uncalibrated until real cycles are recorded; the trained classifier (E7) replaces the rule.
 - **Cloud security (E5):** MQTT runs over TLS on port 1884 and the gateway only sends its NETPIE credentials after the server certificate matches one of the two pinned fingerprints (`gateway/src/certs.h`, see "NETPIE facts"). Discord webhooks are verified against Google Trust Services roots (GTS Root R1/R4, valid until 2036). No secrets are in the repository.
@@ -70,7 +69,7 @@ The `logger` env (`node/logger/main.cpp`) streams every 100 Hz MPU6050 sample ov
 2. Mount it on the washer, plug it into a laptop and run `pio run -d node -e logger -t upload -t monitor`. The `log2file` filter saves everything to `node/platformio-device-monitor-*.log` (about 2.5 kB/s, roughly 9 MB per hour).
 3. Start the monitor before the washer, run one full cycle, stop with Ctrl+C a few minutes after it ends. Note the program and load.
 
-Gaps in `seq` mean dropped lines; an empty `ax,ay,az` means a failed read. Full step-by-step (phone or logger): [`docs/record-a-cycle.md`](docs/record-a-cycle.md).
+Gaps in `seq` mean dropped lines; an empty `ax,ay,az` means a failed read.
 
 ## Dashboard (NETPIE)
 Portal → project WashWatch → **Console → Dashboard**. A dashboard reads the device through a **data source** added in its **Settings** tab ("Add source": Type Device, Device `washwatch-gateway`, **Alias `washwatch`**, privileges **Read Shadow + Read Feed** only). The alias is not part of an exported or imported file, so add it to any new dashboard before importing.
@@ -89,4 +88,3 @@ NETPIE behaviours the generator works around (all seen live on 26–27 Oct 2026)
 
 Check the dashboard without hardware: `uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py` (device credentials in env vars) publishes the sample shadow every 5 s: washer 1 counts down, after 60 s it is done (blinking light) and washer 2 goes offline. It writes the real device shadow, so don't run it while the real gateway is publishing.
 
-![WashWatch dashboard during a fake_shadow.py run, 27 Oct 2026](docs/img/dashboard-live.png)
