@@ -4,6 +4,7 @@
 #include <DHT.h>
 #include <ESP32Servo.h>
 
+#include "rain_watch.h"
 #include "state.h"
 
 // Pins as tested in Wokwi (wokwi/gateway/diagram.json).
@@ -23,6 +24,7 @@ constexpr uint32_t CONTROL_TASK_STACK = 4096;
 
 static DHT dht(PIN_DHT, DHT22);
 static Servo dial[WASHER_COUNT], flag[WASHER_COUNT];
+static RainWatch rain_watch;
 
 static int dial_angle(uint16_t minutes) {
   return map(constrain(minutes, 0, DIAL_MAX_MIN), 0, DIAL_MAX_MIN, 180, 0);
@@ -38,6 +40,10 @@ static void control_task(void*) {
     // Slow sensor reads happen outside the lock.
     bool pir = digitalRead(PIN_PIR) == HIGH;
     uint16_t rain = analogRead(PIN_RAIN);
+    if (rain_watch.update(rain, now)) {
+      Notice n = {0, CycleEvent::None, true};
+      xQueueSend(q_notices, &n, 0);  // a full queue drops it rather than stall the servos
+    }
     bool read_dht = now - last_dht >= DHT_PERIOD_MS;
     float t = NAN, h = NAN;
     if (read_dht) {

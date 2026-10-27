@@ -13,6 +13,7 @@
 #include "notify.h"
 #include "sim_nodes.h"
 #include "state.h"
+#include "task_report.h"
 #include "wifi_config.h"
 
 constexpr uint32_t WIFI_WAIT_MS = 15000;
@@ -47,5 +48,6 @@ void setup() {
 #endif
 }
 
-// All work happens in the tasks.
-void loop() { vTaskDelay(portMAX_DELAY); }
+// All work happens in the tasks; loop only prints their stack use (E1).
+static const char* const TASKS[] = {"espnow_rx", "control", "cloud", "notify", "sim_nodes"};
+void loop() { task_report_loop(TASKS, sizeof(TASKS) / sizeof(TASKS[0])); }

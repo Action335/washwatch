@@ -41,10 +41,14 @@ static void notify_task(void*) {
   Notice n;
   for (;;) {
     if (xQueueReceive(q_notices, &n, portMAX_DELAY) != pdTRUE) continue;
-    const char* what = text_for(n.event);
-    if (what == nullptr) continue;
     char msg[150];
-    snprintf(msg, sizeof(msg), "Washer %u %s", (unsigned)n.node_id, what);
+    if (n.rain) {
+      snprintf(msg, sizeof(msg), "Rain detected at the washers. Bring in any laundry drying outside.");
+    } else {
+      const char* what = text_for(n.event);
+      if (what == nullptr) continue;
+      snprintf(msg, sizeof(msg), "Washer %u %s", (unsigned)n.node_id, what);
+    }
     bool ok = false;
     for (int i = 0; i < MAX_TRIES && !ok; i++) {
       if (i > 0) vTaskDelay(pdMS_TO_TICKS(RETRY_MS));
