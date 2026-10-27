@@ -6,7 +6,7 @@
   "columns": 16,
   "panes": [
     {
-      "id": "ww0006",
+      "id": "ww0007",
       "title": "Gateway",
       "width": 1,
       "row": {
@@ -38,6 +38,18 @@
           "id": "ww0002",
           "type": "text_widget",
           "settings": {
+            "title": "Last update",
+            "size": "small",
+            "value": "(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) == null) ? \"–\" : (((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) < 1e9 ? \"clock not synced\" : new Date(((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"ts\"] == null) ? null : #[\"washwatch\"][\"shadow\"][\"ts\"]) * 1000).toLocaleString(\"en-GB\", {day: \"numeric\", month: \"short\", year: \"numeric\", hour: \"2-digit\", minute: \"2-digit\", second: \"2-digit\", hour12: false}))",
+            "sparkline": false,
+            "animate": true,
+            "units": ""
+          }
+        },
+        {
+          "id": "ww0003",
+          "type": "text_widget",
+          "settings": {
             "title": "Temperature",
             "size": "small",
             "value": "((#[\"washwatch\"][\"shadow\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"] == null || #[\"washwatch\"][\"shadow\"][\"env\"][\"t\"] == null) ? \"–\" : #[\"washwatch\"][\"shadow\"][\"env\"][\"t\"])",
@@ -47,7 +59,7 @@
           }
         },
         {
-          "id": "ww0003",
+          "id": "ww0004",
           "type": "text_widget",
           "settings": {
             "title": "Humidity",
@@ -59,7 +71,7 @@
           }
         },
         {
-          "id": "ww0004",
+          "id": "ww0005",
           "type": "text_widget",
           "settings": {
             "title": "Rain sensor",
@@ -71,7 +83,7 @@
           }
         },
         {
-          "id": "ww0005",
+          "id": "ww0006",
           "type": "indicator",
           "settings": {
             "title": "Someone at the washers",
@@ -84,13 +96,13 @@
             "blinkfrequency": "1",
             "on_text": "\"yes\"",
             "off_text": "\"no\"",
-            "id": "ww0005"
+            "id": "ww0006"
           }
         }
       ]
     },
     {
-      "id": "ww0012",
+      "id": "ww0013",
       "title": "Washer 1",
       "width": 1,
       "row": {
@@ -102,7 +114,7 @@
       "col_width": 1,
       "widgets": [
         {
-          "id": "ww0007",
+          "id": "ww0008",
           "type": "text_widget",
           "settings": {
             "title": "State",
@@ -114,7 +126,7 @@
           }
         },
         {
-          "id": "ww0008",
+          "id": "ww0009",
           "type": "gauge",
           "settings": {
             "title": "Minutes left",
@@ -125,11 +137,11 @@
             "decimal": 0,
             "human_friendly": true,
             "rangeonpercent": false,
-            "id": "ww0008"
+            "id": "ww0009"
           }
         },
         {
-          "id": "ww0009",
+          "id": "ww0010",
           "type": "indicator",
           "settings": {
             "title": "Done – collect laundry",
@@ -142,11 +154,11 @@
             "blinkfrequency": "1",
             "on_text": "\"collect now\"",
             "off_text": "\"–\"",
-            "id": "ww0009"
+            "id": "ww0010"
           }
         },
         {
-          "id": "ww0010",
+          "id": "ww0011",
           "type": "indicator",
           "settings": {
             "title": "Lid open",
@@ -159,11 +171,11 @@
             "blinkfrequency": "1",
             "on_text": "\"open\"",
             "off_text": "\"closed\"",
-            "id": "ww0010"
+            "id": "ww0011"
           }
         },
         {
-          "id": "ww0011",
+          "id": "ww0012",
           "type": "text_widget",
           "settings": {
             "title": "Link",
@@ -177,7 +189,7 @@
       ]
     },
     {
-      "id": "ww0018",
+      "id": "ww0019",
       "title": "Washer 2",
       "width": 1,
       "row": {
@@ -189,7 +201,7 @@
       "col_width": 1,
       "widgets": [
         {
-          "id": "ww0013",
+          "id": "ww0014",
           "type": "text_widget",
           "settings": {
             "title": "State",
@@ -201,7 +213,7 @@
           }
         },
         {
-          "id": "ww0014",
+          "id": "ww0015",
           "type": "gauge",
           "settings": {
             "title": "Minutes left",
@@ -212,11 +224,11 @@
             "decimal": 0,
             "human_friendly": true,
             "rangeonpercent": false,
-            "id": "ww0014"
+            "id": "ww0015"
           }
         },
         {
-          "id": "ww0015",
+          "id": "ww0016",
           "type": "indicator",
           "settings": {
             "title": "Done – collect laundry",
@@ -229,11 +241,11 @@
             "blinkfrequency": "1",
             "on_text": "\"collect now\"",
             "off_text": "\"–\"",
-            "id": "ww0015"
+            "id": "ww0016"
           }
         },
         {
-          "id": "ww0016",
+          "id": "ww0017",
           "type": "indicator",
           "settings": {
             "title": "Lid open",
@@ -246,11 +258,11 @@
             "blinkfrequency": "1",
             "on_text": "\"open\"",
             "off_text": "\"closed\"",
-            "id": "ww0016"
+            "id": "ww0017"
           }
         },
         {
-          "id": "ww0017",
+          "id": "ww0018",
           "type": "text_widget",
           "settings": {
             "title": "Link",
@@ -264,7 +276,7 @@
       ]
     },
     {
-      "id": "ww0022",
+      "id": "ww0023",
       "title": "Training log",
       "width": 1,
       "row": {
@@ -276,7 +288,7 @@
       "col_width": 1,
       "widgets": [
         {
-          "id": "ww0019",
+          "id": "ww0020",
           "type": "text_widget",
           "settings": {
             "title": "Waiting to upload",
@@ -288,7 +300,7 @@
           }
         },
         {
-          "id": "ww0020",
+          "id": "ww0021",
           "type": "text_widget",
           "settings": {
             "title": "Lost (buffer full)",
@@ -300,7 +312,7 @@
           }
         },
         {
-          "id": "ww0021",
+          "id": "ww0022",
           "type": "text_widget",
           "settings": {
             "title": "Refused by NETPIE",
@@ -314,7 +326,7 @@
       ]
     },
     {
-      "id": "ww0025",
+      "id": "ww0026",
       "title": "Vibration",
       "width": 1,
       "row": {
@@ -326,7 +338,7 @@
       "col_width": 1,
       "widgets": [
         {
-          "id": "ww0023",
+          "id": "ww0024",
           "type": "Chart",
           "settings": {
             "title": "Washer 1 vibration (mg)",
@@ -341,11 +353,11 @@
             "colors": "",
             "totalyaxis": 1,
             "height_block": 3,
-            "id": "ww0023"
+            "id": "ww0024"
           }
         },
         {
-          "id": "ww0024",
+          "id": "ww0025",
           "type": "Chart",
           "settings": {
             "title": "Washer 2 vibration (mg)",
@@ -360,7 +372,7 @@
             "colors": "",
             "totalyaxis": 1,
             "height_block": 3,
-            "id": "ww0024"
+            "id": "ww0025"
           }
         }
       ]

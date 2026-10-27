@@ -172,6 +172,19 @@ def test_gateway_online_only_from_a_fresh_shadow(dash):
     assert (a, b, c) == (False, False, True)
 
 
+def test_last_update_time_is_shown(dash):
+    # NETPIE only re-evaluates expressions when data arrives (seen live: the Gateway light stayed
+    # "online" with no reload after the publisher stopped), so the absolute time of the last
+    # shadow is the one thing that stays true on a frozen page.
+    v = find(dash, "Gateway", "Last update")["settings"]["value"]
+    unsynced = copy.deepcopy(FIXTURE)
+    unsynced["ts"] = 15
+    [(ok1, a), (ok2, b), (ok3, c)] = [evaluate([v], s)[0] for s in (FIXTURE, unsynced, {})]
+    assert (ok1, ok2, ok3) == (True, True, True)
+    assert re.fullmatch(r"\d{1,2} \w{3} 2025, \d{2}:\d{2}:\d{2}", a), a
+    assert (b, c) == ("clock not synced", "–")
+
+
 def test_washer_pane_goes_offline_with_the_gateway(dash):
     # A dead gateway leaves the last shadow (washer 1 "running", online) behind: the pane must not
     # show a frozen countdown or a "collect now" light.

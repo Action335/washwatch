@@ -97,6 +97,15 @@ def gateway_online() -> str:
     return f"({ts} != null && Date.now() / 1000 - {ts} < {FRESH_S})"
 
 
+def last_update() -> str:
+    # NETPIE only re-evaluates expressions when data arrives, so the light above can freeze on
+    # "online" after the gateway dies; the absolute time of the last shadow stays true.
+    ts = guarded(("ts",), "null")
+    fmt = '{day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false}'
+    return (f'({ts} == null) ? "{DASH}" : ({ts} < 1e9 ? "clock not synced" : '
+            f'new Date({ts} * 1000).toLocaleString("en-GB", {fmt}))')
+
+
 def washer_online(n: int) -> str:
     # A dead gateway leaves the washer's last "online" in the shadow, so it also needs a fresh shadow.
     return f'({guarded(("washers", str(n), "online"), "false")} && {gateway_online()})'
@@ -120,6 +129,7 @@ def build(template: dict) -> dict:
     b = Builder(template)
     panes = [b.pane("Gateway", 1, [
         b.light("Gateway", gateway_online(), "online", "offline"),
+        b.text("Last update", last_update()),
         b.text("Temperature", shown(("env", "t")), "°C"),
         b.text("Humidity", shown(("env", "rh")), "%"),
         b.text("Rain sensor", shown(("env", "rain"))),
