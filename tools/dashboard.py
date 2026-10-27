@@ -86,11 +86,27 @@ class Builder:
         return p
 
 
+FRESH_S = 90  # the gateway publishes its shadow every 30 s
+
+
+def gateway_online() -> str:
+    # NETPIE's device status is only read when the dashboard loads (stale either way), so the
+    # gateway counts as online while its shadow is under FRESH_S old. Before NTP sync ts is
+    # seconds since boot, which is never fresh.
+    ts = guarded(("ts",), "null")
+    return f"({ts} != null && Date.now() / 1000 - {ts} < {FRESH_S})"
+
+
+def washer_online(n: int) -> str:
+    # A dead gateway leaves the washer's last "online" in the shadow, so it also needs a fresh shadow.
+    return f'({guarded(("washers", str(n), "online"), "false")} && {gateway_online()})'
+
+
 def washer_state(n: int) -> str:
     w = ("washers", str(n))
-    online, state = guarded(w + ("online",), "false"), guarded(w + ("state",), "null")
+    state = guarded(w + ("state",), "null")
     mins = shown(w + ("min_left",))
-    return (f'(!{online}) ? "offline" : ({state} == "done" ? "done {DASH} waiting to be collected" : '
+    return (f'(!{washer_online(n)}) ? "offline" : ({state} == "done" ? "done {DASH} waiting to be collected" : '
             f'({state} == "running" ? "running · " + {mins} + " min left" : "free"))')
 
 
@@ -98,17 +114,6 @@ def washer_link(n: int) -> str:
     w = ("washers", str(n))
     pdr, age = guarded(w + ("pdr",), "null"), shown(w + ("age_s",))
     return f'({pdr} == null) ? "{DASH}" : Math.round({pdr} * 1000) / 10 + " % · " + {age} + " s ago"'
-
-
-FRESH_S = 90  # the gateway publishes its shadow every 30 s
-
-
-def gateway_online() -> str:
-    # NETPIE's device status is only read when the dashboard loads, so a shadow updated in the
-    # last FRESH_S seconds also counts. ts is 0 until the gateway's clock syncs: not fresh.
-    ts = guarded(("ts",), "null")
-    return (f'(#["{ALIAS}"]["status"] == 1) || '
-            f"({ts} != null && {ts} > 0 && Date.now() / 1000 - {ts} < {FRESH_S})")
 
 
 def build(template: dict) -> dict:
@@ -124,8 +129,10 @@ def build(template: dict) -> dict:
         w = ("washers", str(n))
         panes.append(b.pane(f"Washer {n}", col, [
             b.text("State", washer_state(n)),
-            b.gauge("Minutes left", guarded(w + ("min_left",), "0"), "min", 0, 60),
-            b.light(f"Done {DASH} collect laundry", f'{guarded(w + ("state",), "null")} == "done"',
+            # min_left keeps counting on the gateway after a node goes quiet: hide it when offline.
+            b.gauge("Minutes left", f'({washer_online(n)} ? {guarded(w + ("min_left",), "0")} : 0)', "min", 0, 60),
+            b.light(f"Done {DASH} collect laundry",
+                    f'({washer_online(n)} && {guarded(w + ("state",), "null")} == "done")',
                     "collect now", DASH, blink=True),
             b.light("Lid open", guarded(w + ("lid_open",), "false"), "open", "closed"),
             b.text("Link", washer_link(n)),

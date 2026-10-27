@@ -72,7 +72,7 @@ The full dashboard is generated: `python tools/dashboard.py` writes `dashboard/w
 
 Two NETPIE behaviours the generator works around (both seen live on 26–27 Oct 2026):
 - **Indicator ON/OFF TEXT are JavaScript expressions**, so the generator writes them as string literals (a bare `closed` showed `false`: it is the browser global `window.closed`).
-- **The device `status` is only read when the dashboard loads** (it stayed 0 after the device connected, and was 1 after a reload). The Gateway light is therefore "online" when `status == 1` **or** the shadow's `ts` is less than 90 s old.
+- **The device `status` is only read when the dashboard loads** (it stayed 0 after the device connected, and was 1 after a reload). A load-time `status` is stale either way, so the dashboard doesn't use it: the Gateway light is "online" while the shadow's `ts` is less than 90 s old, and a washer counts as online only if its own `online` is true **and** the gateway is online (otherwise its gauge shows 0 and its done light is off).
 - Quirk in the portal: picking **Read Shadow** in a data source's privileges also silently adds **Write Shadow**. Check the privileges column after saving and edit it out.
 
 Check the dashboard without hardware: `uv run --no-project --with "paho-mqtt<2" python tools/fake_shadow.py` (device credentials in env vars) publishes the sample shadow every 5 s: washer 1 counts down, after 60 s it is done (blinking light) and washer 2 goes offline.

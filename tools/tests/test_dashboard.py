@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,13 @@ def expressions(d):
         for k, v in w["settings"].items():
             if isinstance(v, str) and '#["washwatch"]' in v:
                 yield p, w["settings"].get("title"), k, v
+
+
+def fresh(shadow):
+    """A copy of shadow published just now (the fixture's ts is from 2025, so it reads as stale)."""
+    s = copy.deepcopy(shadow)
+    s["ts"] = int(time.time()) - 5
+    return s
 
 
 def evaluate(exprs, shadow, status=1):
@@ -121,7 +129,7 @@ def test_expressions_survive_an_empty_shadow(dash):
 
 def test_state_text_says_offline_when_not_online(dash):
     w = find(dash, "Washer 1", "State")
-    offline = copy.deepcopy(FIXTURE)
+    offline = fresh(FIXTURE)
     offline["washers"]["1"]["online"] = False  # last state is still "running"
     [(ok, val)] = evaluate([w["settings"]["value"]], offline)
     assert ok and val == "offline"
@@ -131,11 +139,11 @@ def test_state_text_for_each_state(dash):
     expr = find(dash, "Washer 1", "State")["settings"]["value"]
     cases = {"idle": "free", "done": "done – waiting to be collected"}
     for state, want in cases.items():
-        s = copy.deepcopy(FIXTURE)
+        s = fresh(FIXTURE)
         s["washers"]["1"].update(state=state, online=True)
         [(ok, val)] = evaluate([expr], s)
         assert ok and val == want
-    s = copy.deepcopy(FIXTURE)
+    s = fresh(FIXTURE)
     s["washers"]["1"].update(state="running", online=True, min_left=12)
     [(ok, val)] = evaluate([expr], s)
     assert ok and val == "running · 12 min left"
@@ -149,24 +157,43 @@ def test_gauge_falls_back_to_a_number(dash):
     assert ok and val == 0
 
 
-def test_gateway_status_uses_device_status(dash):
+def test_gateway_online_only_from_a_fresh_shadow(dash):
+    # NETPIE's device status is only read when the dashboard loads (seen live), so it is stale in
+    # both directions and not used: the gateway is online while its shadow is under 90 s old.
     v = find(dash, "Gateway", "Gateway")["settings"]["value"]
-    assert '#["washwatch"]["status"]' in v
-
-
-def test_gateway_online_from_a_fresh_shadow(dash):
-    # NETPIE's status is only read when the dashboard loads (seen live: it stayed 0 after the
-    # device connected), so a shadow updated in the last 90 s also counts as online.
-    v = find(dash, "Gateway", "Gateway")["settings"]["value"]
+    assert '["status"]' not in v
     stale = copy.deepcopy(FIXTURE)          # ts from 2025: stale
     unsynced = copy.deepcopy(FIXTURE)
-    unsynced["ts"] = 0                      # before the gateway's clock syncs
-    [(ok1, a)] = evaluate([v], stale, status=0)
-    [(ok2, b)] = evaluate([v], unsynced, status=0)
-    [(ok3, c)] = evaluate([v], stale, status=1)
-    [(ok4, d)] = evaluate([v.replace('#["washwatch"]["shadow"]["ts"]', "(Date.now() / 1000 - 5)")], stale, status=0)
-    assert (ok1, ok2, ok3, ok4) == (True, True, True, True)
-    assert (a, b, c, d) == (False, False, True, True)
+    unsynced["ts"] = 15                     # before NTP sync, ts is seconds since boot
+    [(ok1, a)] = evaluate([v], stale, status=1)
+    [(ok2, b)] = evaluate([v], unsynced, status=1)
+    [(ok3, c)] = evaluate([v], fresh(FIXTURE), status=0)
+    assert (ok1, ok2, ok3) == (True, True, True)
+    assert (a, b, c) == (False, False, True)
+
+
+def test_washer_pane_goes_offline_with_the_gateway(dash):
+    # A dead gateway leaves the last shadow (washer 1 "running", online) behind: the pane must not
+    # show a frozen countdown or a "collect now" light.
+    for state in ("running", "done"):
+        s = copy.deepcopy(FIXTURE)          # ts stale
+        s["washers"]["1"].update(state=state, online=True, min_left=12)
+        [(ok1, text), (ok2, mins), (ok3, done)] = evaluate(
+            [find(dash, "Washer 1", t)["settings"]["value"]
+             for t in ("State", "Minutes left", "Done – collect laundry")], s)
+        assert (ok1, ok2, ok3) == (True, True, True)
+        assert (text, mins, done) == ("offline", 0, False), state
+
+
+def test_offline_washer_shows_no_countdown_or_done(dash):
+    # min_left keeps counting down on the gateway after a node goes quiet; the gauge and the
+    # done light must not contradict the "offline" state text.
+    s = fresh(FIXTURE)
+    s["washers"]["1"].update(state="done", online=False, min_left=12)
+    [(ok1, mins), (ok2, done)] = evaluate(
+        [find(dash, "Washer 1", t)["settings"]["value"] for t in ("Minutes left", "Done – collect laundry")], s)
+    assert (ok1, ok2) == (True, True)
+    assert (mins, done) == (0, False)
 
 
 def test_done_light_blinks(dash):
