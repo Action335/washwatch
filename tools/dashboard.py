@@ -89,12 +89,16 @@ class Builder:
 FRESH_S = 90  # the gateway publishes its shadow every 30 s
 
 
+def clock_synced() -> str:
+    # Before NTP sync the gateway's ts is seconds since boot, not a date.
+    ts = guarded(("ts",), "null")
+    return f"({ts} != null && {ts} >= 1e9)"
+
+
 def gateway_online() -> str:
     # NETPIE's device status is only read when the dashboard loads (stale either way), so the
-    # gateway counts as online while its shadow is under FRESH_S old. Before NTP sync ts is
-    # seconds since boot, which is never fresh.
-    ts = guarded(("ts",), "null")
-    return f"({ts} != null && Date.now() / 1000 - {ts} < {FRESH_S})"
+    # gateway counts as online while its shadow is under FRESH_S old.
+    return f'({clock_synced()} && Date.now() / 1000 - {shadow("ts")} < {FRESH_S})'
 
 
 def last_update() -> str:
@@ -102,13 +106,15 @@ def last_update() -> str:
     # "online" after the gateway dies; the absolute time of the last shadow stays true.
     ts = guarded(("ts",), "null")
     fmt = '{day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false}'
-    return (f'({ts} == null) ? "{DASH}" : ({ts} < 1e9 ? "clock not synced" : '
+    return (f'({ts} == null) ? "{DASH}" : (!{clock_synced()} ? "clock not synced" : '
             f'new Date({ts} * 1000).toLocaleString("en-GB", {fmt}))')
 
 
 def washer_online(n: int) -> str:
-    # A dead gateway leaves the washer's last "online" in the shadow, so it also needs a fresh shadow.
-    return f'({guarded(("washers", str(n), "online"), "false")} && {gateway_online()})'
+    # A dead gateway leaves the washer's last "online" in the shadow, so it also needs a fresh
+    # shadow; before NTP sync freshness can't be judged, so the washer's own flag is trusted.
+    return (f'({guarded(("washers", str(n), "online"), "false")} && '
+            f'(!{clock_synced()} || {gateway_online()}))')
 
 
 def washer_state(n: int) -> str:
@@ -121,9 +127,13 @@ def washer_state(n: int) -> str:
 
 
 def washer_link(n: int) -> str:
+    # age_s is the node's age when the gateway published, so show the absolute time it was heard:
+    # "N s ago" would be off by up to a publish period, and frozen on an open page.
     w = ("washers", str(n))
-    pdr, age = guarded(w + ("pdr",), "null"), shown(w + ("age_s",))
-    return f'({pdr} == null) ? "{DASH}" : Math.round({pdr} * 1000) / 10 + " % · " + {age} + " s ago"'
+    pdr, age = guarded(w + ("pdr",), "null"), guarded(w + ("age_s",), "0")
+    heard = f'new Date(({shadow("ts")} - {age}) * 1000).toLocaleTimeString("en-GB", {{hour12: false}})'
+    return (f'(!{washer_online(n)} || {pdr} == null) ? "{DASH}" : '
+            f'Math.round({pdr} * 1000) / 10 + " %" + ({clock_synced()} ? " · heard " + {heard} : "")')
 
 
 def build(template: dict) -> dict:
@@ -145,7 +155,8 @@ def build(template: dict) -> dict:
             b.light(f"Done {DASH} collect laundry",
                     f'({washer_online(n)} && {guarded(w + ("state",), "null")} == "done")',
                     "collect now", DASH, blink=True),
-            b.light("Lid open", guarded(w + ("lid_open",), "false"), "open", "closed"),
+            # A washer not heard since a gateway reboot keeps its old lid_open in the (merged) shadow.
+            b.light("Lid open", f'({washer_online(n)} && {guarded(w + ("lid_open",), "false")})', "open", "closed"),
             # With a dead IMU the running/done detection is wrong while everything else looks fine.
             b.light("Motion sensor fault", f'({washer_online(n)} && {guarded(w + ("imu_fault",), "false")})',
                     "fault", "ok"),

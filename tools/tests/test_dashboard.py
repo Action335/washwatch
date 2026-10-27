@@ -223,6 +223,41 @@ def test_washer_pane_goes_offline_with_the_gateway(dash):
         assert (text, mins, done) == ("offline", 0, False), state
 
 
+def test_washers_trust_online_before_clock_sync(dash):
+    # Before NTP sync the gateway publishes ts = seconds since boot, so freshness can't be judged;
+    # the washers must not all read "offline" (e.g. a network that blocks NTP).
+    s = copy.deepcopy(FIXTURE)
+    s["ts"] = 15
+    s["washers"]["1"].update(state="running", online=True, min_left=12)
+    [(ok1, text), (ok2, mins)] = evaluate(
+        [find(dash, "Washer 1", t)["settings"]["value"] for t in ("State", "Minutes left")], s)
+    assert (ok1, ok2, text, mins) == (True, True, "running · 12 min left", 12)
+
+
+def test_link_shows_when_last_heard(dash):
+    # age_s is the node's age when the gateway published, so "N s ago" is wrong by up to 30 s
+    # and frozen forever on an open page; the absolute time stays true.
+    expr = find(dash, "Washer 1", "Link")["settings"]["value"]
+    s = fresh(FIXTURE)
+    s["washers"]["1"].update(online=True, pdr=0.998, age_s=5)
+    unsynced = copy.deepcopy(s)
+    unsynced["ts"] = 15
+    [(ok1, a)], [(ok2, b)] = evaluate([expr], s), evaluate([expr], unsynced)
+    assert (ok1, ok2) == (True, True)
+    assert re.fullmatch(r"99\.8 % · heard \d{2}:\d{2}:\d{2}", a), a
+    assert b == "99.8 %"
+
+
+def test_offline_washer_hides_old_lid_and_link(dash):
+    # After a gateway reboot, a washer not yet heard from keeps its old lid_open/pdr/age_s in the
+    # shadow (NETPIE merges updates), so they must not be shown for an offline washer.
+    s = fresh(FIXTURE)
+    s["washers"]["1"].update(online=False, lid_open=True, pdr=1, age_s=1)
+    [(ok1, lid), (ok2, link)] = evaluate(
+        [find(dash, "Washer 1", t)["settings"]["value"] for t in ("Lid open", "Link")], s)
+    assert (ok1, ok2, lid, link) == (True, True, False, "–")
+
+
 def test_offline_washer_shows_no_countdown_or_done(dash):
     # min_left keeps counting down on the gateway after a node goes quiet; the gauge and the
     # done light must not contradict the "offline" state text.
