@@ -6,7 +6,9 @@
 #include "ww_msg.h"
 
 // UNCALIBRATED: set from real cycles (the longest mid-cycle soak must stay below DONE_QUIET_MS).
-constexpr uint32_t DONE_QUIET_MS = 4 * 60 * 1000;     // quiet this long after running = done
+// 10 min because washer 2's mid-cycle quiet gaps ran 6-10 min on 7 Nov 2026 (4 min gave a false
+// "done"). Candidate replacement once MPU6050 data exists: "spin seen, then quiet >= 2 min".
+constexpr uint32_t DONE_QUIET_MS = 10 * 60 * 1000;    // quiet this long after running = done
 constexpr uint32_t REMIND_AFTER_MS = 15 * 60 * 1000;  // done and still not collected
 constexpr uint8_t START_WINDOWS = 15;  // moving windows in a row (30 s) before a cycle starts or resumes
 
