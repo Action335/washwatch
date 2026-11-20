@@ -9,6 +9,12 @@
 
 #include "../src/imu.h"
 
+// Lid input level that means "open". Default HIGH: a plain reed switch (KY-021) to GND with the
+// pull-up reads HIGH when the magnet is away. Comparator modules (KY-025) can be the other way round:
+// if closing the lid prints "open", add -DLID_OPEN_LEVEL=LOW to that washer's env.
+#ifndef LID_OPEN_LEVEL
+#define LID_OPEN_LEVEL HIGH
+#endif
 constexpr int PIN_LID = 25;  // same wiring as the node: reed switch to GND, internal pull-up
 constexpr uint32_t SAMPLE_PERIOD_MS = 10;  // 100 Hz, as the node
 
@@ -25,7 +31,7 @@ void loop() {
   static TickType_t wake = xTaskGetTickCount();
   vTaskDelayUntil(&wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
   int16_t a[3];
-  int lid = digitalRead(PIN_LID) == HIGH;
+  int lid = digitalRead(PIN_LID) == LID_OPEN_LEVEL;
   if (imu_read_raw(a)) {
     Serial.printf("%u,%u,%d,%d,%d,%d\n", seq, millis(), a[0], a[1], a[2], lid);
   } else {

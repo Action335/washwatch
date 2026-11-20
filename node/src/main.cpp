@@ -5,6 +5,7 @@
 //         lid ISR ---------------^
 #include <Arduino.h>
 #include <esp_task_wdt.h>
+#include <soc/rtc_cntl_reg.h>
 
 #include "features.h"
 #include "imu.h"
@@ -16,7 +17,13 @@
 #error "Build with -DNODE_ID=<1..254> (see platformio.ini envs)"
 #endif
 
-constexpr int PIN_LID = 25;  // reed switch to GND, internal pull-up: HIGH = lid open
+// Lid input level that means "open". Default HIGH: a plain reed switch (KY-021) to GND with the
+// pull-up reads HIGH when the magnet is away. Comparator modules (KY-025) can be the other way round:
+// if closing the lid prints "open", add -DLID_OPEN_LEVEL=LOW to that washer's env.
+#ifndef LID_OPEN_LEVEL
+#define LID_OPEN_LEVEL HIGH
+#endif
+constexpr int PIN_LID = 25;  // reed switch to GND, internal pull-up
 constexpr uint32_t SAMPLE_PERIOD_MS = 10;  // 100 Hz
 constexpr uint32_t SAMPLES_PER_WINDOW = SEND_PERIOD_MS / SAMPLE_PERIOD_MS;
 constexpr uint32_t LID_DEBOUNCE_MS = 30;
@@ -92,7 +99,7 @@ static void link_task(void*) {
     m.std_mg = last.std_mg;
     m.p2p_mg = last.p2p_mg;
     m.phase = last.imu_fault ? PHASE_IDLE : phase_from_std(last.std_mg);
-    m.flags = (last.imu_fault ? FLAG_IMU_FAULT : 0) | (digitalRead(PIN_LID) == HIGH ? FLAG_LID_OPEN : 0);
+    m.flags = (last.imu_fault ? FLAG_IMU_FAULT : 0) | (digitalRead(PIN_LID) == LID_OPEN_LEVEL ? FLAG_LID_OPEN : 0);
     bool acked = link_send(m);
 
     Serial.printf("%s seq=%lu mean=%u std=%u p2p=%u phase=%u lid=%s%s ch=%u %s\n",
@@ -103,6 +110,11 @@ static void link_task(void*) {
 }
 
 void setup() {
+#ifdef NO_BROWNOUT
+  // Some cheap DevKits dip just under the brownout threshold when the radio starts.
+  // Only for boards that otherwise reboot forever; a real undervoltage then shows as other crashes.
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+#endif
   Serial.begin(115200);
   Serial.printf("WashWatch node %u starting\n", NODE_ID);
   esp_task_wdt_init(WDT_TIMEOUT_S, true);
