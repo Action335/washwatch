@@ -3,8 +3,10 @@
 #include <math.h>
 
 Washer g_washers[WASHER_COUNT] = {
-    {1, WasherCycle(45)},
-    {2, WasherCycle(45)},
+    // Nominal cycle length in minutes, used for minutes left until the learned estimate replaces it.
+    // The two washers are different models (both top-loaders; washer 1 is smaller).
+    {1, WasherCycle(45)},  // NOT MEASURED yet: placeholder until washer 1 is recorded
+    {2, WasherCycle(83)},  // measured 7 Nov 2026 (phone): ~83 min real, display said 65
 };
 
 NodeTable g_nodes;

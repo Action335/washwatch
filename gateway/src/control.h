@@ -1,4 +1,4 @@
-// Local control: servos (dial + flag per washer) and the gateway's own sensors (PIR, DHT22, rain).
+// Local control: servos (dial + flag per washer) and the gateway's own sensors (PIR, DHT11, rain).
 // Runs without the internet.
 #pragma once
 

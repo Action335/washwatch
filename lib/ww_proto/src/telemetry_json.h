@@ -11,8 +11,8 @@ struct WasherView {
 };
 
 struct GatewaySensors {
-  float temp_c;       // NAN if the DHT22 read failed
-  float rh;           // NAN if the DHT22 read failed
+  float temp_c;       // NAN if the DHT read failed
+  float rh;           // NAN if the DHT read failed
   uint16_t rain_raw;  // ADC 0-4095 from the rain (or light) sensor
   bool pir;           // someone at the washers right now
 };

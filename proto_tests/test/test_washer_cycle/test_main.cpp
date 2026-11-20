@@ -64,7 +64,17 @@ void test_short_pause_is_not_done() {
   feed(c, PHASE_WASH, 0, 10 * MIN);
   TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 10 * MIN, 10 * MIN + DONE_QUIET_MS - 2000) == CycleEvent::None);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
-  feed(c, PHASE_SPIN, 14 * MIN, 15 * MIN);  // the cycle carries on after a soak
+  const uint32_t resume = 10 * MIN + DONE_QUIET_MS - 2000;
+  feed(c, PHASE_SPIN, resume, resume + MIN);  // the cycle carries on after a soak
+  TEST_ASSERT_TRUE(c.state() == WasherState::Running);
+}
+
+void test_washer2_mid_cycle_gap_is_not_done() {
+  // Washer 2 on 7 Nov 2026: rinse ended 14:39, quiet until the spin at 14:47-14:48 (~8 min).
+  WasherCycle c(83);
+  feed(c, PHASE_WASH, 0, 22 * MIN);
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 22 * MIN, 30 * MIN) == CycleEvent::None);
+  feed(c, PHASE_SPIN, 30 * MIN, 36 * MIN);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
 }
 
@@ -79,17 +89,18 @@ void test_long_quiet_after_running_is_done() {
 void test_offline_gap_does_not_fake_done() {
   WasherCycle c(45);
   feed(c, PHASE_WASH, 0, 5 * MIN);
-  // Node silent for 10 min, then one quiet message: no evidence of 4 min of quiet yet.
+  // Node silent for 10 min, then one quiet message: no evidence of any quiet time yet.
   TEST_ASSERT_TRUE(c.on_message(msg(PHASE_IDLE), 15 * MIN) == CycleEvent::None);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
 }
 
 void test_opening_the_lid_collects_finished_laundry() {
   WasherCycle c(45);
+  const uint32_t after_done = 30 * MIN + DONE_QUIET_MS + MIN;
   feed(c, PHASE_WASH, 0, 30 * MIN);
-  feed(c, PHASE_IDLE, 30 * MIN, 35 * MIN);
+  feed(c, PHASE_IDLE, 30 * MIN, after_done);
   TEST_ASSERT_TRUE(c.state() == WasherState::Done);
-  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_IDLE, true), 36 * MIN) == CycleEvent::Collected);
+  TEST_ASSERT_TRUE(c.on_message(msg(PHASE_IDLE, true), after_done + MIN) == CycleEvent::Collected);
   TEST_ASSERT_TRUE(c.state() == WasherState::Idle);
 }
 
@@ -102,31 +113,37 @@ void test_lid_open_while_running_is_ignored() {
 
 void test_one_reminder_when_left_uncollected() {
   WasherCycle c(45);
+  const uint32_t done_at = 30 * MIN + DONE_QUIET_MS;  // quiet from 30 min
   feed(c, PHASE_WASH, 0, 30 * MIN);
-  feed(c, PHASE_IDLE, 30 * MIN, 35 * MIN);  // Done at about 34 min
-  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 35 * MIN, 48 * MIN) == CycleEvent::None);
-  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 48 * MIN, 52 * MIN) == CycleEvent::Reminder);
-  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 52 * MIN, 90 * MIN) == CycleEvent::None);  // only once
+  feed(c, PHASE_IDLE, 30 * MIN, done_at + MIN);
+  TEST_ASSERT_TRUE(c.state() == WasherState::Done);
+  const uint32_t remind_at = done_at + REMIND_AFTER_MS;
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, done_at + MIN, remind_at - MIN) == CycleEvent::None);
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, remind_at - MIN, remind_at + 3 * MIN) == CycleEvent::Reminder);
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, remind_at + 3 * MIN, remind_at + 40 * MIN) == CycleEvent::None);  // only once
 }
 
 void test_motion_after_done_resumes_running() {
   // A long soak looked like the end; the final spin proves it wasn't.
   WasherCycle c(45);
+  const uint32_t t = 20 * MIN + DONE_QUIET_MS + MIN;
   feed(c, PHASE_WASH, 0, 20 * MIN);
-  feed(c, PHASE_IDLE, 20 * MIN, 25 * MIN);
+  feed(c, PHASE_IDLE, 20 * MIN, t);
   TEST_ASSERT_TRUE(c.state() == WasherState::Done);
-  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, 25 * MIN, 25 * MIN + START_WINDOWS * 2000) == CycleEvent::None);
+  const uint32_t t_end = t + START_WINDOWS * 2000;
+  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, t, t_end) == CycleEvent::None);
   TEST_ASSERT_TRUE(c.state() == WasherState::Running);
-  TEST_ASSERT_EQUAL(20, c.minutes_left(25 * MIN + START_WINDOWS * 2000));  // keeps the original start time
+  TEST_ASSERT_EQUAL(45 - t_end / MIN, c.minutes_left(t_end));  // keeps the original start time (0)
 }
 
 void test_bump_while_done_stays_done() {
   // A neighbour's spin must not reopen a finished cycle (and later send a second "done").
   WasherCycle c(45);
+  const uint32_t t = 20 * MIN + DONE_QUIET_MS + MIN;
   feed(c, PHASE_WASH, 0, 20 * MIN);
-  feed(c, PHASE_IDLE, 20 * MIN, 25 * MIN);
-  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, 25 * MIN, 25 * MIN + 6000) == CycleEvent::None);
-  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, 25 * MIN + 6000, 35 * MIN) != CycleEvent::Done);
+  feed(c, PHASE_IDLE, 20 * MIN, t);
+  TEST_ASSERT_TRUE(feed(c, PHASE_SPIN, t, t + 6000) == CycleEvent::None);
+  TEST_ASSERT_TRUE(feed(c, PHASE_IDLE, t + 6000, t + DONE_QUIET_MS + 2 * MIN) != CycleEvent::Done);
   TEST_ASSERT_TRUE(c.state() == WasherState::Done);
 }
 
@@ -143,6 +160,7 @@ int main() {
   RUN_TEST(test_isolated_bump_does_not_start_a_cycle);
   RUN_TEST(test_minutes_left_never_reaches_zero_while_running);
   RUN_TEST(test_short_pause_is_not_done);
+  RUN_TEST(test_washer2_mid_cycle_gap_is_not_done);
   RUN_TEST(test_long_quiet_after_running_is_done);
   RUN_TEST(test_offline_gap_does_not_fake_done);
   RUN_TEST(test_opening_the_lid_collects_finished_laundry);

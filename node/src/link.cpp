@@ -63,6 +63,9 @@ static bool sweep(const node_msg_t& m) {
 void link_begin() {
   q_acks = xQueueCreate(8, sizeof(ack_msg_t));
   WiFi.mode(WIFI_STA);
+  // The gateway sits a few metres away, so full power (19.5 dBm) isn't needed. Lower TX
+  // current keeps boards with a weak 3.3 V regulator out of brownout resets.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
   WiFi.disconnect();
   prefs.begin("washwatch", false);
   set_channel(prefs.getUChar("ch", 1));  // last channel that worked, so a reboot is fast
