@@ -14,20 +14,26 @@ constexpr int PIN_RAIN = 34;  // ADC1 only: ADC2 pins stop working when Wi-Fi is
 constexpr int PIN_DIAL[WASHER_COUNT] = {13, 26};
 constexpr int PIN_FLAG[WASHER_COUNT] = {14, 32};
 
-constexpr int DIAL_MAX_MIN = 60;  // dial face runs 0-60 minutes
+// Each washer has its own paper dial face, scaled to its cycle (washer 2 runs ~83 min).
+constexpr int DIAL_MAX_MIN[WASHER_COUNT] = {60, 90};
 constexpr int FLAG_DOWN = 0, FLAG_UP = 90;
 constexpr uint32_t LOOP_MS = 200;
-constexpr uint32_t DHT_PERIOD_MS = 2000;  // DHT22 allows one read per 2 s
+// The real gateway uses the course kit's DHT11 (KY-015); Wokwi only has a DHT22, so
+// gateway_sim sets -DDHT_TYPE=DHT22. Both are fine with one read every 2 s.
+#ifndef DHT_TYPE
+#define DHT_TYPE DHT11
+#endif
+constexpr uint32_t DHT_PERIOD_MS = 2000;
 
 constexpr UBaseType_t CONTROL_TASK_PRIO = 4;  // below receive, above cloud
 constexpr uint32_t CONTROL_TASK_STACK = 4096;
 
-static DHT dht(PIN_DHT, DHT22);
+static DHT dht(PIN_DHT, DHT_TYPE);
 static Servo dial[WASHER_COUNT], flag[WASHER_COUNT];
 static RainWatch rain_watch;
 
-static int dial_angle(uint16_t minutes) {
-  return map(constrain(minutes, 0, DIAL_MAX_MIN), 0, DIAL_MAX_MIN, 180, 0);
+static int dial_angle(uint16_t minutes, int max_min) {
+  return map(constrain(minutes, 0, max_min), 0, max_min, 180, 0);
 }
 
 static void control_task(void*) {
@@ -62,7 +68,7 @@ static void control_task(void*) {
     }
     for (size_t i = 0; i < WASHER_COUNT; i++) {
       const WasherCycle& c = g_washers[i].cycle;
-      dial_deg[i] = dial_angle(c.minutes_left(now));
+      dial_deg[i] = dial_angle(c.minutes_left(now), DIAL_MAX_MIN[i]);
       flag_deg[i] = c.state() == WasherState::Done ? FLAG_UP : FLAG_DOWN;
     }
     xSemaphoreGive(g_state_mtx);
