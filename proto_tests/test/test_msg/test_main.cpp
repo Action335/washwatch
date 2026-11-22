@@ -6,7 +6,7 @@ void setUp() {}
 void tearDown() {}
 
 void test_struct_sizes() {
-  TEST_ASSERT_EQUAL(18, sizeof(node_msg_t));
+  TEST_ASSERT_EQUAL(24, sizeof(node_msg_t));
   TEST_ASSERT_EQUAL(6, sizeof(ack_msg_t));
   TEST_ASSERT_TRUE(sizeof(node_msg_t) <= 250);
 }
@@ -24,9 +24,12 @@ void test_bytes_roundtrip() {
   a.node_id = 2;
   a.seq = 70000;
   a.std_mg = 420;
+  a.vstd_mg = 510;
+  a.lo_mg = 300;
+  a.hi_mg = 40;
   a.phase = PHASE_SPIN;
   a.flags = FLAG_LID_OPEN;
-  uint8_t bytes[18];
+  uint8_t bytes[sizeof(node_msg_t)];
   memcpy(bytes, &a, sizeof(a));
   node_msg_t b;
   memcpy(&b, bytes, sizeof(b));
@@ -34,6 +37,9 @@ void test_bytes_roundtrip() {
   TEST_ASSERT_EQUAL(2, b.node_id);
   TEST_ASSERT_EQUAL_UINT32(70000, b.seq);
   TEST_ASSERT_EQUAL(420, b.std_mg);
+  TEST_ASSERT_EQUAL(510, b.vstd_mg);
+  TEST_ASSERT_EQUAL(300, b.lo_mg);
+  TEST_ASSERT_EQUAL(40, b.hi_mg);
   TEST_ASSERT_EQUAL(PHASE_SPIN, b.phase);
   TEST_ASSERT_EQUAL(FLAG_LID_OPEN, b.flags);
 }

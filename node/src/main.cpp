@@ -27,6 +27,7 @@
 constexpr int PIN_LID = 25;  // reed switch to GND, internal pull-up
 constexpr uint32_t SAMPLE_PERIOD_MS = 10;  // 100 Hz
 constexpr uint32_t SAMPLES_PER_WINDOW = SEND_PERIOD_MS / SAMPLE_PERIOD_MS;
+static_assert(SAMPLES_PER_WINDOW == FEATURE_SAMPLES_PER_WINDOW, "the band filters are designed for this rate");
 constexpr uint32_t LID_DEBOUNCE_MS = 30;
 constexpr int WDT_TIMEOUT_S = 10;  // longest link_send (with a channel sweep) is about 1 s
 
@@ -37,14 +38,14 @@ constexpr uint32_t TASK_STACK = 4096;
 enum class EventKind : uint8_t { Window, Lid };
 struct Event {
   EventKind kind;
-  uint16_t mean_mg, std_mg, p2p_mg;
+  node_msg_t stats;  // only the vibration fields (mean/std/p2p/vstd/lo/hi) are used
   bool imu_fault;
 };
 
 static QueueHandle_t q_events;
 
 static void IRAM_ATTR on_lid_change() {
-  Event e = {EventKind::Lid, 0, 0, 0, false};
+  Event e = {EventKind::Lid, {}, false};
   BaseType_t woken = pdFALSE;
   xQueueSendFromISR(q_events, &e, &woken);  // a full queue drops it; the next window carries the lid state
   if (woken) portYIELD_FROM_ISR();
@@ -52,18 +53,20 @@ static void IRAM_ATTR on_lid_change() {
 
 static void sample_task(void*) {
   esp_task_wdt_add(nullptr);
-  VibrationWindow window;
-  bool fault = false;     // a read failed in this window
-  ImuRecovery recovery;   // re-wakes a sensor that stopped giving data
-  uint32_t samples = 0;   // sample periods so far in this window, read or not
+  VibrationWindow window;  // |a| stats (mean, std, p2p) for the phase rule
+  AxisFeatures axes;       // per-axis features (vstd, band RMS) for training the classifier
+  bool fault = false;      // a read failed in this window
+  ImuRecovery recovery;    // re-wakes a sensor that stopped giving data
+  uint32_t samples = 0;    // sample periods so far in this window, read or not
   TickType_t wake = xTaskGetTickCount();
   for (;;) {
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
     esp_task_wdt_reset();
-    float mag;
-    bool ok = imu_read_magnitude(mag);
+    float a[3];
+    bool ok = imu_read_g(a);
     if (ok) {
-      window.add(mag);
+      window.add(sqrtf(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]));
+      axes.add(a[0], a[1], a[2]);
     } else {
       fault = true;
     }
@@ -71,11 +74,14 @@ static void sample_task(void*) {
     if (++samples < SAMPLES_PER_WINDOW) continue;
     samples = 0;
 
-    node_msg_t stats = {};
-    window.fill(stats);
-    Event e = {EventKind::Window, stats.mean_mg, stats.std_mg, stats.p2p_mg, fault || window.count() == 0};
+    Event e = {};
+    e.kind = EventKind::Window;
+    window.fill(e.stats);
+    axes.fill(e.stats);
+    e.imu_fault = fault || window.count() == 0;
     xQueueSend(q_events, &e, 0);  // full queue = the link is stuck; drop rather than stall sampling
     window.reset();
+    axes.reset_window();
     fault = false;
   }
 }
@@ -83,7 +89,7 @@ static void sample_task(void*) {
 static void link_task(void*) {
   esp_task_wdt_add(nullptr);
   uint32_t seq = 0;
-  Event last = {EventKind::Window, 0, 0, 0, true};  // until the first window: no vibration data
+  Event last = {EventKind::Window, {}, true};  // until the first window: no vibration data
   for (;;) {
     esp_task_wdt_reset();
     Event e;
@@ -99,16 +105,19 @@ static void link_task(void*) {
     m.node_id = NODE_ID;
     m.seq = seq++;
     m.uptime_ms = millis();
-    m.mean_mg = last.mean_mg;
-    m.std_mg = last.std_mg;
-    m.p2p_mg = last.p2p_mg;
-    m.phase = last.imu_fault ? PHASE_IDLE : phase_from_std(last.std_mg);
+    m.mean_mg = last.stats.mean_mg;
+    m.std_mg = last.stats.std_mg;
+    m.p2p_mg = last.stats.p2p_mg;
+    m.vstd_mg = last.stats.vstd_mg;
+    m.lo_mg = last.stats.lo_mg;
+    m.hi_mg = last.stats.hi_mg;
+    m.phase = last.imu_fault ? PHASE_IDLE : phase_from_std(last.stats.std_mg);
     m.flags = (last.imu_fault ? FLAG_IMU_FAULT : 0) | (digitalRead(PIN_LID) == LID_OPEN_LEVEL ? FLAG_LID_OPEN : 0);
     bool acked = link_send(m);
 
-    Serial.printf("%s seq=%lu mean=%u std=%u p2p=%u phase=%u lid=%s%s ch=%u %s\n",
+    Serial.printf("%s seq=%lu mean=%u std=%u p2p=%u vstd=%u lo=%u hi=%u phase=%u lid=%s%s ch=%u %s\n",
                   e.kind == EventKind::Lid ? "lid" : "win", (unsigned long)m.seq, m.mean_mg, m.std_mg,
-                  m.p2p_mg, m.phase, m.flags & FLAG_LID_OPEN ? "open" : "closed",
+                  m.p2p_mg, m.vstd_mg, m.lo_mg, m.hi_mg, m.phase, m.flags & FLAG_LID_OPEN ? "open" : "closed",
                   m.flags & FLAG_IMU_FAULT ? " IMU_FAULT" : "", link_channel(), acked ? "acked" : "gave_up");
   }
 }

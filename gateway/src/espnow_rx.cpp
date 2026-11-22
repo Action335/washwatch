@@ -59,7 +59,7 @@ void handle_node_msg(const uint8_t* mac, const node_msg_t& m) {
   Washer* w = r == Ingest::Accepted ? washer_for(m.node_id) : nullptr;
   if (w != nullptr) {
     ev = w->cycle.on_message(m, now);
-    if (should_log(m, w->cycle.state(), prev_flags)) g_log.push(make_record(m, w->cycle.state(), now));
+    if (w->log_gate.should_log(m, w->cycle.state(), prev_flags, now)) g_log.push(make_record(m, w->cycle.state(), now));
   }
   xSemaphoreGive(g_state_mtx);
   // ACK duplicates too: a duplicate means the node missed our first ACK.
@@ -69,8 +69,9 @@ void handle_node_msg(const uint8_t* mac, const node_msg_t& m) {
     xQueueSend(q_notices, &n, 0);
   }
   counts[(int)r]++;
-  Serial.printf("rx node=%u seq=%lu %s phase=%u std=%u lid=%u ev=%u (acc=%lu dup=%lu rej=%lu)\n", m.node_id,
-                (unsigned long)m.seq, name(r), m.phase, m.std_mg, (m.flags & FLAG_LID_OPEN) ? 1 : 0, (unsigned)ev,
+  Serial.printf("rx node=%u seq=%lu %s phase=%u std=%u vstd=%u lo=%u hi=%u lid=%u ev=%u (acc=%lu dup=%lu rej=%lu)\n",
+                m.node_id, (unsigned long)m.seq, name(r), m.phase, m.std_mg, m.vstd_mg, m.lo_mg, m.hi_mg,
+                (m.flags & FLAG_LID_OPEN) ? 1 : 0, (unsigned)ev,
                 (unsigned long)counts[0], (unsigned long)counts[1], (unsigned long)counts[2]);
 }
 

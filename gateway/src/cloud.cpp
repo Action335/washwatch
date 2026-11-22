@@ -21,7 +21,6 @@ constexpr const char* SHADOW_TOPIC = "@shadow/data/update";
 // Batch topic and reply topic confirmed by tools/netpie_probe.py on 26 Oct 2026 (README "NETPIE facts").
 constexpr const char* BATCH_TOPIC = "@shadow/batch/update";
 constexpr const char* BATCH_RESPONSE_TOPIC = "@private/shadow/batch/update/response";
-constexpr size_t BATCH_MAX_BYTES = 6144;  // LOG_BATCH_MAX records fit (test_fifty_records_fit_in_6k)
 constexpr size_t PAYLOAD_MAX = 1024;  // two washers + env is about 500 bytes at most
 constexpr uint32_t RECONNECT_MS = 5000;
 constexpr uint32_t WIFI_FIRST_RETRY_MS = 2000;  // most drops are a short beacon loss

@@ -10,5 +10,5 @@ bool imu_begin();
 bool imu_wake();
 // Raw x, y, z counts (8192 per g). Returns false if the read failed.
 bool imu_read_raw(int16_t a[3]);
-// |a| in g (about 1.0 at rest). Returns false if the read failed or gave (0, 0, 0) (sensor asleep).
-bool imu_read_magnitude(float& mag_g);
+// x, y, z in g (|a| about 1.0 at rest). Returns false if the read failed or gave (0, 0, 0) (sensor asleep).
+bool imu_read_g(float a_g[3]);

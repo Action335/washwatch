@@ -24,6 +24,9 @@ static void sim_nodes_task(void*) {
       bool washing = id == 1 && now < SIM_RUN_MS;
       m.std_mg = washing ? SIM_WASH_STD_MG : 2;
       m.p2p_mg = m.std_mg * 4;
+      m.vstd_mg = washing ? SIM_WASH_STD_MG * 2 : 3;  // sideways shake that |a| misses
+      m.lo_mg = washing ? SIM_WASH_STD_MG / 4 : 1;
+      m.hi_mg = washing ? SIM_WASH_STD_MG : 1;
       m.phase = washing ? PHASE_WASH : PHASE_IDLE;
       handle_node_msg(nullptr, m);
     }

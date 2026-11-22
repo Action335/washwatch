@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-constexpr uint8_t MSG_VERSION = 2;  // 1 was AirBox
+constexpr uint8_t MSG_VERSION = 3;  // 1 was AirBox; 3 adds vstd/lo/hi (flash node and gateway together)
 
 // Washer phase for one window. The node fills it from a rule for now; the on-device
 // classifier (E7) replaces the rule later without changing this format.
@@ -26,10 +26,13 @@ typedef struct __attribute__((packed)) {
   uint16_t mean_mg;     // mean |a| over the window, milli-g (about 1000 at rest)
   uint16_t std_mg;      // standard deviation of |a|, milli-g: how hard the drum shakes
   uint16_t p2p_mg;      // max - min of |a|, milli-g
+  uint16_t vstd_mg;     // sqrt(var x + var y + var z), milli-g: also sees sideways shake that |a| misses
+  uint16_t lo_mg;       // RMS of the 5-15 Hz band over all axes, milli-g (spin: ~11.7 Hz)
+  uint16_t hi_mg;       // RMS of the 15-40 Hz band over all axes, milli-g (wash/rinse motor hum)
   uint8_t phase;        // PHASE_*
   uint8_t flags;        // FLAG_* bits
 } node_msg_t;
-static_assert(sizeof(node_msg_t) == 18, "node_msg_t must stay 18 bytes");
+static_assert(sizeof(node_msg_t) == 24, "node_msg_t must stay 24 bytes");
 
 typedef struct __attribute__((packed)) {
   uint8_t ver;

@@ -3,9 +3,18 @@
 #include <ArduinoJson.h>
 #include <stdio.h>
 
-bool should_log(const node_msg_t& m, WasherState state_after, uint8_t prev_flags) {
-  // Done is quiet and can last for hours (nobody opens the lid), so it is logged at the idle rate.
-  if (state_after == WasherState::Running || m.phase != PHASE_IDLE) return true;
+bool LogGate::should_log(const node_msg_t& m, WasherState state_after, uint8_t prev_flags, uint32_t now_ms) {
+  const bool fault = m.flags & FLAG_IMU_FAULT;
+  const bool moving = !fault && (m.vstd_mg >= LOG_MOVING_VSTD_MG || m.phase != PHASE_IDLE);
+  if (moving) {
+    moved_ = true;
+    last_moving_ms_ = now_ms;
+    return true;
+  }
+  // Done is quiet and can last for hours (nobody opens the lid), so after the hold it is logged at
+  // the idle rate.
+  if (state_after == WasherState::Running) return true;
+  if (moved_ && now_ms - last_moving_ms_ < LOG_HOLD_MS) return true;  // unsigned: survives millis() wrap
   if ((m.flags ^ prev_flags) & FLAG_LID_OPEN) return true;
   return m.seq % IDLE_LOG_EVERY == 0;
 }
@@ -19,6 +28,9 @@ LogRecord make_record(const node_msg_t& m, WasherState state_after, uint32_t now
   r.flags = m.flags;
   r.std_mg = m.std_mg;
   r.p2p_mg = m.p2p_mg;
+  r.vstd_mg = m.vstd_mg;
+  r.lo_mg = m.lo_mg;
+  r.hi_mg = m.hi_mg;
   return r;
 }
 
@@ -39,8 +51,14 @@ size_t build_batch_update(const LogRecord* recs, size_t n, uint32_t now_ms, uint
       d[key] = r.std_mg;
       snprintf(key, sizeof(key), "w%u_p2p", (unsigned)r.node_id);
       d[key] = r.p2p_mg;
-      snprintf(key, sizeof(key), "w%u_phase", (unsigned)r.node_id);
-      d[key] = r.phase;
+      snprintf(key, sizeof(key), "w%u_vstd", (unsigned)r.node_id);
+      d[key] = r.vstd_mg;
+      snprintf(key, sizeof(key), "w%u_lo", (unsigned)r.node_id);
+      d[key] = r.lo_mg;
+      snprintf(key, sizeof(key), "w%u_hi", (unsigned)r.node_id);
+      d[key] = r.hi_mg;
+      // No w_phase: it is the uncalibrated rule's output, recomputable from w_std, and each key
+      // costs Feed quota.
     }
     snprintf(key, sizeof(key), "w%u_state", (unsigned)r.node_id);
     d[key] = r.state;

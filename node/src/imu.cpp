@@ -41,11 +41,9 @@ bool imu_read_raw(int16_t a[3]) {
   return true;
 }
 
-bool imu_read_magnitude(float& mag_g) {
+bool imu_read_g(float a_g[3]) {
   int16_t raw[3];
   if (!imu_read_raw(raw) || !imu_sample_plausible(raw)) return false;
-  float a[3];
-  for (int i = 0; i < 3; i++) a[i] = raw[i] / LSB_PER_G;
-  mag_g = sqrtf(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+  for (int i = 0; i < 3; i++) a_g[i] = raw[i] / LSB_PER_G;
   return true;
 }

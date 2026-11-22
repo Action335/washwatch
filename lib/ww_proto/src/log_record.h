@@ -9,4 +9,5 @@ struct LogRecord {
   uint8_t phase;     // PHASE_*
   uint8_t flags;     // FLAG_* from the node message
   uint16_t std_mg, p2p_mg;
+  uint16_t vstd_mg, lo_mg, hi_mg;
 };

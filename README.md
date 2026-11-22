@@ -55,7 +55,11 @@ Probed 26 Oct 2026 with the device credentials (`python tools/netpie_probe.py`, 
 - Still to check in the portal: the usage page shows how many shadow writes one batch costs.
 
 ## Training data (for the phase classifier)
-The gateway logs every window while a washer is active, one idle window per 30 s, and every lid change, as Feed points `w<id>_std`, `w<id>_p2p`, `w<id>_phase`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. The 10 datatags (washers 1 and 2) exist on the device with **TTL 1 week** (created 26 Oct 2026). 1 week keeps storage around 440k point-month, inside the free 1,000,000; 1 month would be about 1.9M.
+Each node message (format v3, 24 bytes) carries, per 2 s window at 100 Hz: `std`/`p2p` of |a|, plus `vstd` (sqrt of the summed per-axis variances, which also sees sideways shake that |a| misses), `lo` (RMS of the 5–15 Hz band over all axes, where the ~11.7 Hz spin sits) and `hi` (RMS of the 15–40 Hz band, motor hum during wash/rinse). The bands are 4th-order band-pass filters (two RBJ biquads) in `lib/ww_proto/src/features.*`. A still sensor reads about `vstd=3 lo=1 hi=1` mg.
+
+The gateway's `LogGate` (`lib/ww_proto/src/batch_json.*`, one per washer) logs every window while the washer is running, moving (`vstd` ≥ `LOG_MOVING_VSTD_MG` = 6 mg) or within `LOG_HOLD_MS` (10 min) of the last moving window, so the quiet soaks inside a cycle and the quiet tail after it are kept in full; otherwise one window per 30 s, plus every lid change. Feed points per record: `w<id>_std`, `w<id>_p2p`, `w<id>_vstd`, `w<id>_lo`, `w<id>_hi`, `w<id>_state` (0 idle, 1 running, 2 done) and `w<id>_lid`. `w<id>_phase` is no longer logged (the uncalibrated rule's output, recomputable from `w<id>_std`).
+
+**Datatags:** the Feed stores only keys that have a datatag. `w1_vstd`, `w1_lo`, `w1_hi`, `w2_vstd`, `w2_lo`, `w2_hi` must be added in the device's Feed tab (Data Type Number) before they are stored. The original 10 datatags have **TTL 1 week** (created 26 Oct 2026). With 7 keys per record and full-rate logging through each cycle, a week of data is roughly 0.6–1.2M points depending on how many cycles run per day, around the free 1,000,000; if the quota warning appears, shorten the TTL and export more often.
 
 To download: portal → device → Feed → **Exports** → pick the `w1_*` / `w2_*` datatags and a date range → CSV. **Export at least once a week (e.g. every Sunday)**, because points older than 1 week are deleted.
 
