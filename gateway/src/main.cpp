@@ -41,6 +41,14 @@ void setup() {
     ESP.restart();
   }
   espnow_rx_start();
+#ifdef SIM_BACKLOG
+  // gateway_backlog test: start with SIM_BACKLOG records queued, as after an outage. Node 9 has no
+  // datatags, so they reach the shadow but never the Feed.
+  for (int i = 0; i < SIM_BACKLOG; i++) {
+    LogRecord r = {millis(), 9, 0, 0, FLAG_LID_OPEN, 2, 12, 3, 1, 1};
+    g_log.push(r);
+  }
+#endif
   cloud_start();
   notify_start();
 #ifdef SIM_NODES

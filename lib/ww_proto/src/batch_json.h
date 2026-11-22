@@ -7,8 +7,11 @@
 #include "ww_msg.h"
 
 constexpr uint32_t IDLE_LOG_EVERY = 15;  // one idle window in 15 = one per 30 s
-constexpr size_t LOG_BATCH_MAX = 50;      // NETPIE allows 100
-constexpr size_t BATCH_MAX_BYTES = 8192;  // LOG_BATCH_MAX records at their widest fit (test_full_batch_fits_the_mqtt_buffer)
+// Small batches on purpose: NETPIE allows 100 records, but on the laundry's Wi-Fi a ~5 KB publish
+// (50 records) never arrived, every time, while ~860 bytes (8 records) always did (22 Nov 2026,
+// gateway_backlog env). So one batch must stay within about one TCP packet.
+constexpr size_t LOG_BATCH_MAX = 6;
+constexpr size_t BATCH_MAX_BYTES = 1200;  // LOG_BATCH_MAX records at their widest fit (test_full_batch_fits_the_mqtt_buffer)
 
 // "Moving" for the log: vector std at or above this. Set just above the still-sensor noise floor so
 // that gentle wash/rinse counts, since the training data must include it. CALIBRATE from idle data.

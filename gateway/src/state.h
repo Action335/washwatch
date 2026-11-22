@@ -5,6 +5,7 @@
 #include <freertos/semphr.h>
 
 #include "batch_json.h"
+#include "lid_filter.h"
 #include "node_table.h"
 #include "record_buffer.h"
 #include "telemetry_json.h"
@@ -16,6 +17,7 @@ struct Washer {
   uint8_t node_id;
   WasherCycle cycle;
   LogGate log_gate;  // which of its windows go to the training log
+  LidFilter lid;     // reed chatter filter, applied before anything reads the lid flag
 };
 
 // Nominal cycle lengths (minutes): set them from each washer's own display.
