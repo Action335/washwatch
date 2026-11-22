@@ -67,6 +67,15 @@ Records wait in a RAM buffer (3,000 records, about 50 min of both washers runnin
 
 Simulation build: `pio run -d gateway -e gateway_sim` runs two simulated washer nodes on Wokwi's open Wi-Fi against the real NETPIE device in `secrets.h`. Add `-DSIM_OUTAGE` to its `build_flags` to cut the cloud off from 20 s to 50 s of uptime.
 
+## Training the phase classifier
+`tools/train_phase.py` trains the idle / wash / spin classifier from `data/feed_all.csv` and `data/labels.csv` (one row per watched wash: `date, washer, start, spin_start, done, lid_opened, program, load, notes`, times HH:MM Bangkok; the first run creates the file with this header). It labels the windows of each cycle (start → spin start = wash, soaks included; spin start → done = spin; 30 min before and after = idle; anything else is unobserved and unused), adds past-only context features over 1, 5 and 10 min (vstd mean/max, lo and hi means, fraction of windows with vstd ≥ 6 mg), trains a small decision tree, and tests it on whole cycles it did not see (GroupKFold by cycle) against the firmware's threshold rule on the same windows.
+
+```
+uv run --no-project --with pandas --with scikit-learn --with matplotlib python -I tools/train_phase.py --plot
+```
+
+Writes `data/model/report.md` (accuracy, per-class precision/recall, confusion matrix, per-cycle results, feature importance, the tree), `data/model/phase_model.h` (the tree as plain C if/else, `phase_model_predict(const float f[20])`, for on-device inference: E7) and, with `--plot`, one PNG per cycle in `data/model/cycles/` for checking labels or reading a spin start that wasn't noted. `--install` copies the header into `gateway/src/`. The C export is checked against scikit-learn in `tools/tests/test_train_phase.py` (compiled with gcc). **Not done yet:** computing the 20 features live on the gateway and calling the model there; that waits for a model trained on real cycles.
+
 ## Recording a cycle
 The `logger` env (`node/logger/main.cpp`) streams every 100 Hz MPU6050 sample over USB as CSV: `seq,ms,ax,ay,az,lid` (raw counts, 8192 per g; `lid` 1 = open, and reads 1 when no reed switch is wired). It is for calibrating `STD_WASH_MG`, `STD_SPIN_MG`, `DONE_QUIET_MS`, `START_WINDOWS` and choosing richer features, so mount the board exactly as the node will be.
 
