@@ -9,6 +9,7 @@
 
 #include "features.h"
 #include "imu.h"
+#include "imu_health.h"
 #include "link.h"
 #include "task_report.h"
 #include "ww_msg.h"
@@ -53,17 +54,20 @@ static void sample_task(void*) {
   esp_task_wdt_add(nullptr);
   VibrationWindow window;
   bool fault = false;     // a read failed in this window
+  ImuRecovery recovery;   // re-wakes a sensor that stopped giving data
   uint32_t samples = 0;   // sample periods so far in this window, read or not
   TickType_t wake = xTaskGetTickCount();
   for (;;) {
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
     esp_task_wdt_reset();
     float mag;
-    if (imu_read_magnitude(mag)) {
+    bool ok = imu_read_magnitude(mag);
+    if (ok) {
       window.add(mag);
     } else {
       fault = true;
     }
+    if (recovery.update(ok)) Serial.printf("imu: no data, re-wake %s\n", imu_wake() ? "sent" : "failed");
     if (++samples < SAMPLES_PER_WINDOW) continue;
     samples = 0;
 

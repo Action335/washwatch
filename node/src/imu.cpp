@@ -4,6 +4,8 @@
 #include <Wire.h>
 #include <math.h>
 
+#include "imu_health.h"
+
 constexpr int PIN_SDA = 21, PIN_SCL = 22;
 constexpr uint8_t MPU_ADDR = 0x68;  // AD0 low
 constexpr uint8_t REG_CONFIG = 0x1A, REG_ACCEL_CONFIG = 0x1C, REG_ACCEL_XOUT_H = 0x3B, REG_PWR_MGMT_1 = 0x6B;
@@ -18,6 +20,10 @@ static bool write_reg(uint8_t reg, uint8_t val) {
 
 bool imu_begin() {
   Wire.begin(PIN_SDA, PIN_SCL, 400000);
+  return imu_wake();
+}
+
+bool imu_wake() {
   return write_reg(REG_PWR_MGMT_1, 0x00)       // wake up, internal clock
          && write_reg(REG_CONFIG, 0x03)        // DLPF 44 Hz: below Nyquist for 100 Hz sampling
          && write_reg(REG_ACCEL_CONFIG, 0x08);  // +-4 g
@@ -37,7 +43,7 @@ bool imu_read_raw(int16_t a[3]) {
 
 bool imu_read_magnitude(float& mag_g) {
   int16_t raw[3];
-  if (!imu_read_raw(raw)) return false;
+  if (!imu_read_raw(raw) || !imu_sample_plausible(raw)) return false;
   float a[3];
   for (int i = 0; i < 3; i++) a[i] = raw[i] / LSB_PER_G;
   mag_g = sqrtf(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
