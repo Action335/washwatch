@@ -14,6 +14,7 @@
 #include "state.h"
 #include "telemetry_json.h"
 #include "wifi_config.h"
+#include "wifi_retry.h"
 
 constexpr const char* MQTT_HOST = "mqtt.netpie.io";
 constexpr uint16_t MQTT_PORT = 1884;  // MQTT over TLS (E5); 1883 is plain
@@ -40,7 +41,8 @@ static uint32_t batch_end_seq = 0;  // g_log sequence just past the in-flight ba
 static uint8_t wifi_channel = 0;
 static uint32_t wifi_attempts = 0;  // reconnect attempts since the link was last up
 
-// Auto-reconnect is off (main.cpp), so rejoin the router ourselves, on its last channel.
+// Auto-reconnect is off (main.cpp), so rejoin the router ourselves: on its last channel,
+// with a full scan every few attempts in case it rebooted onto another one.
 static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
   if (WiFi.status() == WL_CONNECTED) {
     wifi_channel = WiFi.channel();
@@ -52,9 +54,11 @@ static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
   if (now - last_wifi_try < wait) return;
   last_wifi_try = now;
   wifi_attempts++;
-  Serial.printf("wifi: reconnecting on channel %u\n", wifi_channel);
+  uint8_t ch = wifi_retry_channel(wifi_channel, wifi_attempts);
+  if (ch) Serial.printf("wifi: reconnecting on channel %u\n", ch);
+  else Serial.println("wifi: reconnecting, scanning all channels");
   WiFi.disconnect();
-  WiFi.begin(WIFI_NET_SSID, WIFI_NET_PASS, wifi_channel);
+  WiFi.begin(WIFI_NET_SSID, WIFI_NET_PASS, ch);
 }
 
 // NETPIE's CA is private and unpublished, so the chain isn't checked; instead the server
