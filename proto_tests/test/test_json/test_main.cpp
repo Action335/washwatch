@@ -50,6 +50,33 @@ void test_gateway_fields() {
   TEST_ASSERT_TRUE(d["env"]["pir"].as<bool>());
 }
 
+void test_diag_fields() {
+  NodeTable t;
+  WasherCycle c1(45);
+  WasherView w[] = {{1, &c1}};
+  GatewayDiag g = {3600, "brownout", -81, 4, 7, 125, -2};
+  size_t n = build_shadow_update(t, w, 1, ENV, LOG, "washwatch-01", 0, 0, out, sizeof(out), &g);
+  TEST_ASSERT_TRUE(n > 0);
+  JsonDocument doc;
+  TEST_ASSERT_TRUE(deserializeJson(doc, out, n) == DeserializationError::Ok);
+  JsonObject d = doc["data"]["diag"];
+  TEST_ASSERT_EQUAL_UINT32(3600, d["up_s"].as<uint32_t>());
+  TEST_ASSERT_EQUAL_STRING("brownout", d["reset"]);
+  TEST_ASSERT_EQUAL(-81, d["rssi"].as<int>());
+  TEST_ASSERT_EQUAL(4, d["wifi_drops"].as<int>());
+  TEST_ASSERT_EQUAL(7, d["mqtt_drops"].as<int>());
+  TEST_ASSERT_EQUAL(125, d["off_s"].as<int>());
+  TEST_ASSERT_EQUAL(-2, d["mqtt_rc"].as<int>());
+}
+
+void test_no_diag_no_field() {
+  NodeTable t;
+  WasherCycle c1(45);
+  WasherView w[] = {{1, &c1}};
+  JsonDocument doc = build(t, w, 1, ENV, 0);
+  TEST_ASSERT_TRUE(doc["data"]["diag"].isNull());
+}
+
 void test_log_stats() {
   NodeTable t;
   WasherCycle c1(45);
@@ -169,6 +196,8 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_gateway_fields);
   RUN_TEST(test_log_stats);
+  RUN_TEST(test_diag_fields);
+  RUN_TEST(test_no_diag_no_field);
   RUN_TEST(test_failed_dht_is_null);
   RUN_TEST(test_running_washer_fields);
   RUN_TEST(test_unheard_washer_shows_state_only);

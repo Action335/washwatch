@@ -111,7 +111,7 @@ void test_rejected_three_times_is_dropped() {
 void test_disconnects_count_toward_drop() {
   // A batch that makes NETPIE close the connection must not be resent forever.
   BatchUploader u;
-  for (int i = 1; i < BATCH_MAX_TIMEOUTS; i++) {
+  for (int i = 1; i < BATCH_MAX_DISCONNECTS; i++) {
     TEST_ASSERT_EQUAL(5, u.poll(5, i));
     u.on_disconnect();
     TEST_ASSERT_EQUAL(0, u.take_dropped());
@@ -120,6 +120,35 @@ void test_disconnects_count_toward_drop() {
   u.on_disconnect();
   TEST_ASSERT_EQUAL(5, u.take_dropped());
   TEST_ASSERT_EQUAL_UINT32(5, u.rejected());
+}
+
+void test_flaky_link_does_not_drop_batch() {
+  // Weak Wi-Fi: the link drops several times before the ack (more than BATCH_MAX_TIMEOUTS),
+  // then the batch gets through. Nothing may be lost.
+  BatchUploader u;
+  for (int i = 0; i < BATCH_MAX_TIMEOUTS + 2; i++) {
+    TEST_ASSERT_EQUAL(5, u.poll(5, i));
+    u.on_disconnect();
+  }
+  TEST_ASSERT_EQUAL(0, u.take_dropped());
+  TEST_ASSERT_EQUAL(5, u.poll(5, 100));
+  TEST_ASSERT_EQUAL(5, u.on_response(u.ackid(), 0));
+  TEST_ASSERT_EQUAL_UINT32(0, u.rejected());
+}
+
+void test_ack_resets_disconnect_count() {
+  BatchUploader u;
+  for (int i = 1; i < BATCH_MAX_DISCONNECTS; i++) {
+    u.poll(5, i);
+    u.on_disconnect();
+  }
+  u.poll(5, 100);
+  TEST_ASSERT_EQUAL(5, u.on_response(u.ackid(), 0));
+  for (int i = 1; i < BATCH_MAX_DISCONNECTS; i++) {
+    u.poll(5, 100 + i);
+    u.on_disconnect();
+  }
+  TEST_ASSERT_EQUAL(0, u.take_dropped());
 }
 
 void test_disconnect_after_error_reply_is_not_a_timeout() {
@@ -157,6 +186,8 @@ int main() {
   RUN_TEST(test_ack_resets_timeout_count);
   RUN_TEST(test_rejected_three_times_is_dropped);
   RUN_TEST(test_disconnects_count_toward_drop);
+  RUN_TEST(test_flaky_link_does_not_drop_batch);
+  RUN_TEST(test_ack_resets_disconnect_count);
   RUN_TEST(test_disconnect_after_error_reply_is_not_a_timeout);
   RUN_TEST(test_disconnect_clears_in_flight);
   RUN_TEST(test_response_while_idle_is_ignored);

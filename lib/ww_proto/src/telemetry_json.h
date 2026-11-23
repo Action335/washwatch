@@ -21,10 +21,21 @@ struct GatewaySensors {
 struct LogStats {
   uint32_t buffered;  // records waiting to upload
   uint32_t dropped;   // overwritten because the buffer was full
-  uint32_t rejected;  // dropped after NETPIE refused them BATCH_MAX_REJECTS times
+  uint32_t rejected;  // given up on: refused, never acked, or in flight at too many link drops
+};
+
+// Gateway link health, so a Feed gap can be explained from the shadow alone (no serial log).
+struct GatewayDiag {
+  uint32_t up_s;        // seconds since boot; small = it rebooted
+  const char* reset;    // why it last booted ("power", "brownout", "panic", "wdt", ...)
+  int8_t rssi;          // dBm of the router; 0 = not connected
+  uint32_t wifi_drops;  // Wi-Fi connected -> lost, since boot
+  uint32_t mqtt_drops;  // MQTT connected -> lost, since boot
+  uint32_t off_s;       // total seconds without MQTT since the first connect
+  int mqtt_rc;          // PubSubClient state at the last failed connect (0 = none yet)
 };
 
 // Returns the bytes written (no terminator counted), or 0 if out_len is too small.
 size_t build_shadow_update(const NodeTable& t, const WasherView* washers, size_t n_washers,
                            const GatewaySensors& env, const LogStats& log, const char* gw_id, uint32_t ts,
-                           uint32_t now_ms, char* out, size_t out_len);
+                           uint32_t now_ms, char* out, size_t out_len, const GatewayDiag* diag = nullptr);

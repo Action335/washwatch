@@ -21,6 +21,7 @@ size_t BatchUploader::poll(size_t buffered, uint32_t now_ms) {
 size_t BatchUploader::on_response(uint32_t ackid, int errcode) {
   if (!in_flight_ || answered_ || ackid != ackid_) return 0;
   timeouts_ = 0;  // NETPIE is answering
+  disconnects_ = 0;
   if (errcode == 0) {
     in_flight_ = false;
     rejects_ = 0;
@@ -39,15 +40,21 @@ size_t BatchUploader::on_response(uint32_t ackid, int errcode) {
 bool BatchUploader::count_unanswered() {
   if (answered_ || ++timeouts_ < BATCH_MAX_TIMEOUTS) return false;
   // NETPIE never answers this batch (e.g. it can't parse it): drop it so it can't block newer data.
-  in_flight_ = false;
-  timeouts_ = 0;
-  rejected_ += n_;
-  pending_drop_ += n_;
+  drop_in_flight();
   return true;
 }
 
+void BatchUploader::drop_in_flight() {
+  in_flight_ = false;
+  timeouts_ = 0;
+  disconnects_ = 0;
+  rejected_ += n_;
+  pending_drop_ += n_;
+}
+
 void BatchUploader::on_disconnect() {
-  if (in_flight_) count_unanswered();
+  // The link dropped, not necessarily NETPIE refusing the batch: resend it after reconnecting.
+  if (in_flight_ && !answered_ && ++disconnects_ >= BATCH_MAX_DISCONNECTS) drop_in_flight();
   in_flight_ = false;
 }
 

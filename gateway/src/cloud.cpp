@@ -5,6 +5,7 @@
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_system.h>
 #include <time.h>
 
 #include "batch_json.h"
@@ -41,14 +42,44 @@ static uint32_t batch_end_seq = 0;  // g_log sequence just past the in-flight ba
 static uint8_t wifi_channel = 0;
 static uint32_t wifi_attempts = 0;  // reconnect attempts since the link was last up
 
+// Link health for the shadow's "diag" (cloud_task only).
+constexpr int RC_TLS_FAILED = -100;  // TLS connect or pin check failed before MQTT was tried
+static bool wifi_was_up = false;
+static uint32_t wifi_drops = 0;
+static uint32_t mqtt_drops = 0;
+static uint32_t off_ms = 0;  // time without MQTT since the first connect
+static bool ever_connected = false;
+static int last_rc = 0;
+
+static const char* reset_name(esp_reset_reason_t r) {
+  switch (r) {
+    case ESP_RST_POWERON: return "power";
+    case ESP_RST_SW: return "sw";
+    case ESP_RST_PANIC: return "panic";
+    case ESP_RST_INT_WDT: return "int_wdt";
+    case ESP_RST_TASK_WDT: return "task_wdt";
+    case ESP_RST_WDT: return "wdt";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_EXT: return "ext";
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    default: return "other";
+  }
+}
+
 // Auto-reconnect is off (main.cpp), so rejoin the router ourselves: on its last channel,
 // with a full scan every few attempts in case it rebooted onto another one.
 static void ensure_wifi(uint32_t now, uint32_t& last_wifi_try) {
   if (WiFi.status() == WL_CONNECTED) {
+    wifi_was_up = true;
     wifi_channel = WiFi.channel();
     wifi_attempts = 0;
     last_wifi_try = now;
     return;
+  }
+  if (wifi_was_up) {
+    wifi_was_up = false;
+    wifi_drops++;
+    Serial.printf("wifi: lost (drop %lu)\n", (unsigned long)wifi_drops);
   }
   uint32_t wait = wifi_attempts == 0 ? WIFI_FIRST_RETRY_MS : WIFI_RETRY_MS;
   if (now - last_wifi_try < wait) return;
@@ -93,14 +124,18 @@ static bool ensure_connected(uint32_t now, uint32_t& last_try) {
   last_try = now;
   // Open TLS and check the pin first: mqtt.connect() reuses this open connection, so the
   // credentials are only ever sent to a verified NETPIE broker.
-  if (!open_pinned_tls()) return false;
+  if (!open_pinned_tls()) {
+    last_rc = RC_TLS_FAILED;
+    return false;
+  }
   bool ok = mqtt.connect(NETPIE_CLIENT_ID, NETPIE_TOKEN, NETPIE_SECRET);
   if (ok && !mqtt.subscribe(BATCH_RESPONSE_TOPIC)) {
     // Without the ack subscription every batch would time out and be dropped: retry the whole connect.
     mqtt.disconnect();
     ok = false;
   }
-  Serial.printf("mqtt: connect %s (state %d)\n", ok ? "ok" : "failed", mqtt.state());
+  if (!ok) last_rc = mqtt.state();
+  Serial.printf("mqtt: connect %s (state %d, rssi %d)\n", ok ? "ok" : "failed", mqtt.state(), WiFi.RSSI());
   return ok;
 }
 
@@ -151,8 +186,15 @@ static void publish_shadow() {
   // Read the time under the lock, so no node can be stored "after" it.
   uint32_t now = millis();
   LogStats log = {(uint32_t)g_log.size(), g_log.dropped(), uploader.rejected()};
+  GatewayDiag diag = {now / 1000,
+                      reset_name(esp_reset_reason()),
+                      (int8_t)(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0),
+                      wifi_drops,
+                      mqtt_drops,
+                      off_ms / 1000,
+                      last_rc};
   size_t n = build_shadow_update(g_nodes, views, WASHER_COUNT, g_env, log, GW_ID, (uint32_t)time(nullptr), now,
-                                 payload, sizeof(payload));
+                                 payload, sizeof(payload), &diag);
   xSemaphoreGive(g_state_mtx);
   if (n == 0) {
     Serial.println("mqtt: payload too large, skipped");
@@ -165,6 +207,7 @@ static void publish_shadow() {
 static void cloud_task(void*) {
   uint32_t last_try = 0, last_pub = 0, last_wifi_try = millis();
   bool first_try = true, was_connected = false;
+  uint32_t last_loop = millis();
   for (;;) {
     uint32_t now = millis();
     if (first_try) {
@@ -173,7 +216,14 @@ static void cloud_task(void*) {
     }
     ensure_wifi(now, last_wifi_try);
     bool connected = ensure_connected(now, last_try);
-    if (was_connected && !connected) uploader.on_disconnect();  // its ack can't arrive now: resend later
+    if (was_connected && !connected) {
+      uploader.on_disconnect();  // its ack can't arrive now: resend later
+      mqtt_drops++;
+      Serial.printf("mqtt: lost (drop %lu, rssi %d)\n", (unsigned long)mqtt_drops, WiFi.RSSI());
+    }
+    if (connected) ever_connected = true;
+    else if (ever_connected) off_ms += now - last_loop;
+    last_loop = now;
     was_connected = connected;
     if (connected) {
       mqtt.loop();
